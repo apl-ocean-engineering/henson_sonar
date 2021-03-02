@@ -1,0 +1,52 @@
+TODO:
+- create CMakeLists and package.xml to get this to work with ROS melodic
+- include sonar imaging messages in subscriber node
+
+
+
+- order of hilbert curve = length or width of sqaure it is traversing
+	- 8 x 8 square can have every coordinate filled by a N = 8 curve
+	- how do you do a hilbert curve in a rectangle?
+
+notes on OMP
+- Ax = y
+	- A = dictionary matrix
+	- x = unknown vector (will be 1 x 169, a column of A)
+	- y = target vector (1 x 169 gamma vector centered on matching pixel)
+- approach: instead attempt to solve:
+- y - Ax = e
+	- e = error vector. if x exists (highly unlikely), e would = 0
+	- instead we are looking for the best possible value of x, and
+	  include e to make up for the fact that it isn't perfect
+SETUP OMP algorithm
+- output vector x^ (x-hat), our proposed solution to x
+	- init as 0, iterate on it throughout algo
+- error vector e
+	- init as y (if x^ = 0, then e must = y)
+- support vector S
+	- init empty. it will eventually contain index of A we want for
+	  our solution
+BEGIN LOOP
+	- loop ends once error is small enough (ex: norm of e > 0.1)
+		- what does norm mean
+- loop through A to find index j that is maximally correlated with e
+	- at each index j, calculate:
+		- abs((A_j) ^ transpose e) / norm(A_j)
+		- "the norm of the matrix product between A_j transpose
+		  and the current error, divided by euclidean norm of A_j"
+	- the max output of the above calculation will be the vector we
+	  append to S
+		- by "append" it means add the specific column to S
+		- ex: if first loop finds j = 2 is best, S = [2]
+		  if second loop finds j = 5, S = [2,5]
+	- now update x^
+		- take Moore-Penrose pseudo-inverse of A
+		  = (A_transpose A) ^ (inverse)A_transpose
+			- available on most any lin alg library
+		- multiply y by this value to get x_temp
+			- x_temp = A_pseudo_inverse * y
+(?)		- can now cast x_temp directly to x^
+(?)			- for every index in S, set x_hat == x_temp
+	- update error vector
+		- e = y - A*x^
+	- check norm(e) << threshold OR exceeded max iterations, exit if needed
