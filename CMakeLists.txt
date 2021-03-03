@@ -26,7 +26,7 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 
 add_executable(sonar_listener src/sonar_listener.cpp)
 
-target_link_libraries(sonar_listener ${catkin_LIBRARIES})
+target_link_libraries(sonar_listener ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
 
 ## System dependencies are found with CMake's conventions
