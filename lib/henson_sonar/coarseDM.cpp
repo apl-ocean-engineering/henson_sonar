@@ -5,6 +5,7 @@
 #include <iostream>
 #include <Eigen/Dense>
 #include <opencv2/imgproc.hpp>
+#include "henson_sonar/coarseDM.h"
 
 using namespace Eigen;
 using namespace cv;

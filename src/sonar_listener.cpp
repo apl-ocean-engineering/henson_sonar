@@ -3,7 +3,7 @@
 #include <imaging_sonar_msgs/SonarImage.h>
 #include "image_proc/sonarImageProc.h"
 // imaging_sonar_msgs::SonarImage msg
-#include <henson_sonar/coarseDM.h>
+#include "henson_sonar/coarseDM.h"
 // #include <Eigen3/Eigen/Dense>
 
 #include <opencv2/core.hpp>

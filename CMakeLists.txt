@@ -22,6 +22,13 @@ catkin_package(
   DEPENDS system_lib Eigen opencv2
 )
 
+file(GLOB DM_SRCS
+  "lib/henson_sonar/*.cpp"
+)
+
+add_library(henson_sonar_depth_map ${DM_SRCS})
+
+
 file(GLOB PROC_SRCS
   "lib/image_proc/*.cpp"
 )
@@ -32,7 +39,7 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 
 add_executable(sonar_listener src/sonar_listener.cpp)
 
-target_link_libraries(sonar_listener ${catkin_LIBRARIES} ${OpenCV_LIBS} henson_sonar_proc)
+target_link_libraries(sonar_listener ${catkin_LIBRARIES} ${OpenCV_LIBS} henson_sonar_proc henson_sonar_depth_map)
 
 
 ## System dependencies are found with CMake's conventions
