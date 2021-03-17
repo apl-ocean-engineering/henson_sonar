@@ -13,7 +13,7 @@
 using namespace cv;
 using namespace std;
 
-boolean first;
+bool first;
 cv::Mat prevCartesian;
 SonarImageProc image_proc;
 CoarseDM coarse_dm;
@@ -23,6 +23,8 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
   // // send imaging sonar message to hensonLib functions
   // // rosbag uses imaging_sonar_msgs/SonarImage messages
   // // printf("got a message!\n");
+  // global boolean first;
+
   // SonarImageProc image_proc;
   image_proc.parseImg(msg);
   // cv::Mat polar = image_proc.polarImage();
@@ -36,9 +38,10 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
 
   if (first) {
     prevCartesian = curCartesian;
+    first = false;
   } else {
     // coarse depth map
-    Eigen::VectorXi target_gammaa = coarse_dm.getGamma(pixelX, pixelY, curCartesian);
+    Eigen::VectorXi target_gamma = coarse_dm.getGamma(pixelX, pixelY, curCartesian);
     Eigen::MatrixXi dict_matrix = coarse_dm.dictionaryMatrix(pixelX, pixelY, curCartesian, prevCartesian);
     Eigen::Matrix<int, 169, 2> result = coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma);
   }

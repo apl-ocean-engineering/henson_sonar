@@ -63,7 +63,7 @@ Eigen::Matrix<int, Dynamic, Dynamic> CoarseDM::dictionaryMatrix(int pixelX, int 
 // Given dictionary matrix A, target vector y
 // Outputs gamma vector x, error vector e (stacked into a 2 x 169 matrix)
 // such that y - Ax = e, via Orthogonal Matching Pursuit
-Eigen::Matrix<int, 169, 2> CoarseDM::getTargetErrorOMP(Eigen::Matrix<int, 169, 1681> dictA, Eigen::VectorXi targetY) {
+Eigen::Matrix<int, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(Eigen::Matrix<int, Dynamic, Dynamic> dictA, Eigen::VectorXi targetY) {
   // Setup
   Eigen::MatrixXi result(169, 2);
   Eigen::VectorXi xHat(169); // init all values to zero

@@ -5,8 +5,14 @@
 using namespace Eigen;
 using namespace cv;
 
-Eigen::Matrix<int, 1681, 169> dictionaryMatrix(int pixelX, int pixelY, cv::Mat imgTarget, cv::Mat imgRef);
+class CoarseDM{
+public:
+  CoarseDM();
+  // Eigen::Matrix<int, 1681, 169> dictionaryMatrix(int pixelX, int pixelY, cv::Mat imgTarget, cv::Mat imgRef);
+  Eigen::Matrix<int, Dynamic, Dynamic> dictionaryMatrix(int pixelX, int pixelY, cv::Mat imgTarget, cv::Mat imgRef);
+  Eigen::VectorXi getGamma(int x, int y, cv::Mat img);
+  // Eigen::Matrix<int, 2, 169> getTargetErrorOMP(Matrix<int, 1681, 169> dictA, VectorXi targetX);
+  Eigen::Matrix<int, Dynamic, Dynamic> getTargetErrorOMP(Matrix<int, Dynamic, Dynamic> dictA, VectorXi targetX);
+private:
 
-Eigen::VectorXi getGamma(int x, int y, cv::Mat img);
-
-Eigen::Matrix<int, 2, 169> getTargetErrorOMP(Matrix<int, 1681, 169> dictA, VectorXi targetX);
+};
