@@ -10,10 +10,14 @@ using namespace Eigen;
 using namespace cv;
 using namespace std;
 
+CoarseDM::CoarseDM(){
+
+}
+
 // Given image, coordinates
 // Outputs gamma vector centered at given coordinates of given image
 // Assumes 13 x 13 area, single channel grayscale image (type 8UC1)
-Eigen::VectorXi getGamma(int x, int y, cv::Mat img) {
+Eigen::VectorXi CoarseDM::getGamma(int x, int y, cv::Mat img) {
    Eigen::VectorXi result(169);
    int i = 0;
    int yOffset = (13-1) / 2;
@@ -37,7 +41,7 @@ Eigen::VectorXi getGamma(int x, int y, cv::Mat img) {
 // note: might need Eigen:: at start of next line
 // note: user must get target gamma via: getGamma(pixelX, pixelY, imgTarget);
 // Eigen::Matrix<int, 169, 1681> dictionaryMatrix(int pixelX, int pixelY, cv::Mat imgTarget, cv::Mat imgRef) {
-Eigen::Matrix<int, Dynamic, Dynamic> dictionaryMatrix(int pixelX, int pixelY, cv::Mat imgTarget, cv::Mat imgRef) {
+Eigen::Matrix<int, Dynamic, Dynamic> CoarseDM::dictionaryMatrix(int pixelX, int pixelY, cv::Mat imgTarget, cv::Mat imgRef) {
    // Scalar intensity = img.at<uchar>(Point(x, y));
    // Eigen::MatrixXi result(1682, 169);
    Eigen::MatrixXi result(169, 1681);
@@ -59,7 +63,7 @@ Eigen::Matrix<int, Dynamic, Dynamic> dictionaryMatrix(int pixelX, int pixelY, cv
 // Given dictionary matrix A, target vector y
 // Outputs gamma vector x, error vector e (stacked into a 2 x 169 matrix)
 // such that y - Ax = e, via Orthogonal Matching Pursuit
-Eigen::Matrix<int, 169, 2> getTargetErrorOMP(Eigen::Matrix<int, 169, 1681> dictA, Eigen::VectorXi targetY) {
+Eigen::Matrix<int, 169, 2> CoarseDM::getTargetErrorOMP(Eigen::Matrix<int, 169, 1681> dictA, Eigen::VectorXi targetY) {
   // Setup
   Eigen::MatrixXi result(169, 2);
   Eigen::VectorXi xHat(169); // init all values to zero
@@ -112,6 +116,6 @@ Eigen::Matrix<int, 169, 2> getTargetErrorOMP(Eigen::Matrix<int, 169, 1681> dictA
   return result;
 }
 
-int main (int argc, char *argv[]) {
-  return 0;
-}
+// int main (int argc, char *argv[]) {
+//   return 0;
+// }
