@@ -1,6 +1,29 @@
-TODO:
-- create CMakeLists and package.xml to get this to work with ROS melodic
-- include sonar imaging messages in subscriber node
+2021/3/30
+- NOTE: matrix notation is row, column
+- issue of using Dynamic matrices in Eigen
+	- for any multiplication, need to know that the dimensions of the matrices will work?
+	- ! may need to change vectors to 1 x Dynamic matrices
+		- Assertion `lhs.cols() == rhs.rows()
+		- xHat cols: 1 xHat rows: 169 dictA rows: 169
+- Eigen stack memory limit
+	- trying to use big matrices -> errors
+	- need to circumvent (i think need to change compilation settings? maybe cmake)
+	-
+For speeding up matrix multiplication:
+https://stackoverflow.com/questions/39723461/vector-matrix-multiplication-with-eigen
+1. try converting all vectors to 1 x Dynamic Matrices
+2. Need to pass parameters by REFERENCE, not by value!
+left off: having trouble around line 114 in coarseDM
+can't get dictionary matrix (169 by 1681) to multiply with xHat (169 by 1)
+
+Still can't figure out why it's broken... error message:
+xHat cols: 1
+xHat rows: 169
+dictA rows: 169
+dictA cols: 1681
+sonar_listener: /usr/include/eigen3/Eigen/src/Core/Product.h:95: Eigen::Product<Lhs, Rhs, Option>::Product(const Lhs&, const Rhs&) [with _Lhs = Eigen::Matrix<int, -1, -1>; _Rhs = Eigen::Matrix<int, -1, -1>; int Option = 0; Eigen::Product<Lhs, Rhs, Option>::Lhs = Eigen::Matrix<int, -1, -1>; Eigen::Product<Lhs, Rhs, Option>::Rhs = Eigen::Matrix<int, -1, -1>]: Assertion `lhs.cols() == rhs.rows() && "invalid matrix product" && "if you wanted a coeff-wise or a dot product use the respective explicit functions"' failed.
+Aborted (core dumped)
+
 
 
 

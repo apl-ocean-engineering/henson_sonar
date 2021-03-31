@@ -12,7 +12,7 @@ public:
   Eigen::Matrix<int, Dynamic, Dynamic> dictionaryMatrix(int pixelX, int pixelY, cv::Mat imgTarget, cv::Mat imgRef);
   Eigen::VectorXi getGamma(int x, int y, cv::Mat img);
   // Eigen::Matrix<int, 2, 169> getTargetErrorOMP(Matrix<int, 1681, 169> dictA, VectorXi targetX);
-  Eigen::Matrix<int, Dynamic, Dynamic> getTargetErrorOMP(Matrix<int, Dynamic, Dynamic> dictA, VectorXi targetX);
+  Eigen::Matrix<int, Dynamic, Dynamic> getTargetErrorOMP(const Matrix<int, Dynamic, Dynamic>& dictA, const VectorXi& targetX);
 private:
 
 };

@@ -64,22 +64,31 @@ Eigen::Matrix<int, Dynamic, Dynamic> CoarseDM::dictionaryMatrix(int pixelX, int 
 // Given dictionary matrix A, target vector y
 // Outputs gamma vector x, error vector e (stacked into a 2 x 169 matrix)
 // such that y - Ax = e, via Orthogonal Matching Pursuit
-Eigen::Matrix<int, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(Eigen::Matrix<int, Dynamic, Dynamic> dictA, Eigen::VectorXi targetY) {
+Eigen::Matrix<int, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::Matrix<int, Dynamic, Dynamic>& dictA, const Eigen::VectorXi& oldY) {
   // Setup
   Eigen::MatrixXi result(169, 2);
-  Eigen::VectorXi xHat(169); // init all values to zero
+  result.fill(0);
+  // Eigen::VectorXi xHat(169); // init all values to zero
+  // Eigen::MatrixXi xHat(1, 169);
+  Eigen::MatrixXi xHat(169, 1);
   xHat.fill(0);
+  // Eigen::MatrixXi targetY(1, 169);
+  // targetY.row(0) = oldY.col(0);
+  Eigen::MatrixXi targetY(169, 1);
+  targetY = oldY;
 
   Eigen::VectorXi error(169); // make error vector, duplicate values in targetY
   for (int i = 0; i < error.size(); i++) {
     error(i) = targetY(i);
   }
 
+  // Eigen::MatrixXi tempDict(169, 1681);
 
   float errorThresh = 0.1; // placeholder
   int maxIterations = 10;  // placeholder
   int iteration = 0;
   Eigen::VectorXi support(maxIterations); // init support vector
+  support.fill(0);
   // Loop
   float errorNorm = error.cast<float>().norm();
   while (errorNorm > errorThresh && iteration < maxIterations) {
@@ -88,13 +97,16 @@ Eigen::Matrix<int, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(Eigen::Matrix<i
     int maxIndex;
     float curValue;
     Eigen::VectorXi curGamma(169);
+    curGamma.fill(0);
     for (int j = 0; j < dictA.cols(); j++) {
       curGamma = dictA.col(j);
       float gammaNorm = curGamma.cast<float>().norm();
       // the norm of the matrix product between (curGamma transpose)
       // and the current error signal, divided by the
       // euclidean norm of curGamma
+      // printf("multiply at line 98\n");
       curValue = abs((curGamma.transpose() * error) / gammaNorm);
+      // printf("success line 98\n");
 
       if (curValue > maxValue) {
         maxIndex = j;
@@ -106,13 +118,47 @@ Eigen::Matrix<int, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(Eigen::Matrix<i
     // update xHat
     for (int j = 0; j < iteration; j++) {
       xHat(j) = support(j);
+      // Eigen::MatrixXi xHat(1, 169);
     }
     // update error, errorNorm
-    error = targetY - (dictA * xHat);
-    errorNorm = error.cast<float>().norm();
+    printf("multiply at line 114\n");
+    // cout << targetY << "/n";
+    // cout << xHat << "/n";
+    // cout << "TEST" << "/n";
+
+    // cout << targetY.size() << "/n";
+    // cout << xHat.size() << "/n";
+    printf("xHat cols: %ld\n", xHat.cols());
+    printf("xHat rows: %ld\n", xHat.rows());
+    printf("dictA rows: %ld\n", dictA.rows());
+    printf("dictA cols: %ld\n", dictA.cols());
+    // GOAL:
+    error = targetY - (xHat * dictA);
+    // error = targetY - dictA.cwiseProduct(xHat);
+    // Eigen::MatrixXi dictA(169, 1681);
+    // Eigen::MatrixXi xHat(1, 169);
+    // for (int k = 0; k < dictA.cols(); k++) {
+    //   printf("almost\n");
+    //   tempDict.col(k) = dictA.col(k) * xHat;
+    //   printf("success\n");
+    // }
+    // error = targetY - tempDict.rowwise().sum();
+    // MatrixXi test;
+    // // test = xHat.cwiseProduct(dictA);
+    // // // test = dictA.cwiseProduct(xHat);
+    // test = xHat.asDiagonal() * dictA;
+    // cout << test << "\n";
+    // printf("test cols: %ld\n", test.cols());
+    // rowSum = test.rowwise().sum();
+    // printf("rowSum cols: %ld", rowSum.cols());
+    // cout << rowSum << "\n";
+    // cout << test << "\n";
+    // error = targetY - dictA.cwiseProduct(xHat).sum();
+    // printf("success line 114\n");
+    // errorNorm = error.cast<float>().norm();
   }
 
-  result.col(0) = xHat;
+  result.col(0) = xHat.col(0);
   result.col(1) = error;
   return result;
 }
