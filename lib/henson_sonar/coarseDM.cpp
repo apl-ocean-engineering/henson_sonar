@@ -64,25 +64,26 @@ Eigen::Matrix<int, Dynamic, Dynamic> CoarseDM::dictionaryMatrix(int pixelX, int 
 // Given dictionary matrix A, target vector y
 // Outputs gamma vector x, error vector e (stacked into a 2 x 169 matrix)
 // such that y - Ax = e, via Orthogonal Matching Pursuit
-Eigen::Matrix<int, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::Matrix<int, Dynamic, Dynamic>& dictA, const Eigen::VectorXi& oldY) {
+Eigen::Matrix<int, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::Matrix<int, Dynamic, Dynamic>& dictA, const Eigen::VectorXi& targetY) {
   // Setup
   Eigen::MatrixXi result(169, 2);
   result.fill(0);
-  // Eigen::VectorXi xHat(169); // init all values to zero
-  // Eigen::MatrixXi xHat(1, 169);
-  Eigen::MatrixXi xHat(169, 1);
+
+  Eigen::MatrixXi xHat(1, 169);
+  // Eigen::MatrixXi xHat(169, 1);
   xHat.fill(0);
+
+  // reshape targetY if needed: rename parameter to "oldY"
   // Eigen::MatrixXi targetY(1, 169);
-  // targetY.row(0) = oldY.col(0);
-  Eigen::MatrixXi targetY(169, 1);
-  targetY = oldY;
+  // // targetY.row(0) = oldY.col(0);
+  // // Eigen::MatrixXi targetY(169, 1);
+  // targetY = oldY;
 
   Eigen::VectorXi error(169); // make error vector, duplicate values in targetY
   for (int i = 0; i < error.size(); i++) {
     error(i) = targetY(i);
   }
 
-  // Eigen::MatrixXi tempDict(169, 1681);
 
   float errorThresh = 0.1; // placeholder
   int maxIterations = 10;  // placeholder
@@ -118,27 +119,32 @@ Eigen::Matrix<int, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::Ma
     // update xHat
     for (int j = 0; j < iteration; j++) {
       xHat(j) = support(j);
-      // Eigen::MatrixXi xHat(1, 169);
     }
     // update error, errorNorm
     printf("multiply at line 114\n");
-    // cout << targetY << "/n";
-    // cout << xHat << "/n";
-    // cout << "TEST" << "/n";
 
-    // cout << targetY.size() << "/n";
-    // cout << xHat.size() << "/n";
-    printf("xHat cols: %ld\n", xHat.cols());
     printf("xHat rows: %ld\n", xHat.rows());
+    printf("xHat cols: %ld\n", xHat.cols());
+
     printf("dictA rows: %ld\n", dictA.rows());
     printf("dictA cols: %ld\n", dictA.cols());
+
+    printf("targetY rows: %ld\n", targetY.rows());
+    printf("targetY cols: %ld\n", targetY.cols());
+
+    printf("error rows: %ld\n", error.rows());
+    printf("error cols: %ld\n", error.cols());
+
     // GOAL:
-    error = targetY - (xHat * dictA);
+    // error = targetY - (dictA * xHat);
+
+    Eigen::MatrixXi test;
+    test = dictA * xHat; // this currently fails
+
+    // trying other ways of multiplying dictA * xHat
     // error = targetY - dictA.cwiseProduct(xHat);
-    // Eigen::MatrixXi dictA(169, 1681);
-    // Eigen::MatrixXi xHat(1, 169);
     // for (int k = 0; k < dictA.cols(); k++) {
-    //   printf("almost\n");
+    //   printf("test\n");
     //   tempDict.col(k) = dictA.col(k) * xHat;
     //   printf("success\n");
     // }

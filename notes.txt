@@ -19,8 +19,8 @@ can't get dictionary matrix (169 by 1681) to multiply with xHat (169 by 1)
 Still can't figure out why it's broken... error message:
 xHat cols: 1
 xHat rows: 169
-dictA rows: 169
 dictA cols: 1681
+dictA rows: 169
 sonar_listener: /usr/include/eigen3/Eigen/src/Core/Product.h:95: Eigen::Product<Lhs, Rhs, Option>::Product(const Lhs&, const Rhs&) [with _Lhs = Eigen::Matrix<int, -1, -1>; _Rhs = Eigen::Matrix<int, -1, -1>; int Option = 0; Eigen::Product<Lhs, Rhs, Option>::Lhs = Eigen::Matrix<int, -1, -1>; Eigen::Product<Lhs, Rhs, Option>::Rhs = Eigen::Matrix<int, -1, -1>]: Assertion `lhs.cols() == rhs.rows() && "invalid matrix product" && "if you wanted a coeff-wise or a dot product use the respective explicit functions"' failed.
 Aborted (core dumped)
 
