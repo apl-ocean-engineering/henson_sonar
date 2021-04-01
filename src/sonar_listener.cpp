@@ -44,7 +44,7 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
     Eigen::VectorXi target_gamma = coarse_dm.getGamma(pixelX, pixelY, curCartesian);
     Eigen::Matrix<int, Dynamic, Dynamic> dict_matrix = coarse_dm.dictionaryMatrix(pixelX, pixelY, curCartesian, prevCartesian);
     // Eigen::Matrix<int, 169, 2> result = coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma);
-    Eigen::Matrix<int, Dynamic, Dynamic> result = coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma);
+    Eigen::Matrix<float, Dynamic, Dynamic> result = coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma);
   }
   prevCartesian = curCartesian;
 }

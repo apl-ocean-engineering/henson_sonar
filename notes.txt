@@ -1,3 +1,8 @@
+2021/3/31
+- stuck at turning error vector into a float datatype
+	- when I do, the multiplication at line 114 stops compiling bc of mixing datatypes
+- also realized i forgot to do the pseduo inverse of dictA for x_temp (as detailed in the OMP writeup)
+
 2021/3/30
 - NOTE: matrix notation is row, column
 - issue of using Dynamic matrices in Eigen
