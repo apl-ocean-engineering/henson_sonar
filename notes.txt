@@ -12,6 +12,12 @@
 		- likely due to huge values, may be reaching limit of float datatype?
 	- original image returned by mitchell's imageproc file is CV_8UC1
 		- make sure it can convert correctly
+	- bunch of values in error vector are getting set to NaN!
+		- error = targetY - (dictA * xHat);
+		- check that all values in targetY, dictA, xHat are not equal to NaN!
+			- have a feeling that it may be due to not doing any padding on the image
+			  dictionary matrix may be going off the image, but I assume that would throw
+				an error rather than just set to NaN
 
 
 2021/4/1

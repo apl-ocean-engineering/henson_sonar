@@ -112,7 +112,7 @@ Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::
     Eigen::VectorXf curGamma(dictA.rows());
     curGamma.fill(0);
     for (int j = 0; j < dictA.cols(); j++) {
-      curGamma = dictA.col(j).cast<float>();
+      curGamma = dictA.col(j);
       // float gammaNorm = curGamma.cast<float>().norm();
       // the norm of the matrix product between (curGamma transpose)
       // and the current error signal, divided by the
@@ -133,10 +133,10 @@ Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::
     // update error, errorNorm
 
     // printf("inverse at line 124\n");
-    Eigen::MatrixXf dictA_pseudo_inv = dictA.cast<float>().completeOrthogonalDecomposition().pseudoInverse();
+    Eigen::MatrixXf dictA_pseudo_inv = dictA.completeOrthogonalDecomposition().pseudoInverse();
     // printf("success line 124\n");
     // printf("multiply at line 125\n");
-    Eigen::MatrixXf xTemp = dictA_pseudo_inv * targetY.cast<float>();
+    Eigen::MatrixXf xTemp = dictA_pseudo_inv * targetY;
     // printf("success line 125\n");
     // cout << "xTemp dimensions are " << xTemp.rows() << " by " << xTemp.cols() << "\n";
 
@@ -172,10 +172,11 @@ Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::
     // cout << "dictA dim: " << dictA.rows() << " x " << dictA.cols() << "\n";
     // cout << "xHat dim: " << xHat.rows() << " x " << xHat.cols() << "\n";
 
-    Eigen::MatrixXf test = dictA.cast<float>() * xHat;
+    Eigen::MatrixXf test = dictA * xHat;
     // cout << "test dim: " << test.rows() << " x " << test.cols() << "\n";
 
-    error = targetY.cast<float>() - (dictA.cast<float>() * xHat);
+    // TODO: some values from this calculation are evaluating to NaN!
+    error = targetY - (dictA * xHat);
     // cout << "xHat:\n" << xHat << "\n";
     cout << "error: \n" << error << "\n end error \n";
     // printf("success line 157\n");
