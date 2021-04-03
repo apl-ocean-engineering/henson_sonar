@@ -1,3 +1,13 @@
+2021/4/1
+- code working better now
+- issue updating xHat
+	- "For every index in S (support vector), xHat = xTemp. otherwise xHat == 0"
+	- so if column 700 was chosen in the first iteration (AKA support = [700, null, null, ...]),
+	  and I am currently looping over support vector with variable j (j currently = 0), do I set
+		xHat[700] = xTemp[700]? or:
+		xHat[dictA.col(700)[0]] = xTemp[dictA.col(700)[0]]
+
+
 2021/3/31
 - stuck at turning error vector into a float datatype
 	- when I do, the multiplication at line 114 stops compiling bc of mixing datatypes

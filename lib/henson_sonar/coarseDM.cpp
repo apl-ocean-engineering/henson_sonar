@@ -23,9 +23,11 @@ Eigen::VectorXi CoarseDM::getGamma(int x, int y, cv::Mat img) {
    int i = 0;
    int yOffset = (13-1) / 2;
    int xOffset = (13-1) / 2;
-   for (int curY = y - yOffset; curY < y + yOffset; curY++) {
-      for (int curX = x - xOffset; curX < x + xOffset; curX++) {
+   for (int curY = y - yOffset; curY <= y + yOffset; curY++) {
+      for (int curX = x - xOffset; curX <= x + xOffset; curX++) {
          result(i) = img.at<uchar>(curY, curX);
+         // result(i) = img.at<uchar>(curX, curY);
+         // cout << result(i) << "\n";
          i++;
       }
    }
@@ -46,18 +48,22 @@ Eigen::Matrix<int, Dynamic, Dynamic> CoarseDM::dictionaryMatrix(int pixelX, int 
    // Scalar intensity = img.at<uchar>(Point(x, y));
    // Eigen::MatrixXi result(1682, 169);
    Eigen::MatrixXi result(169, 1681);
+   result.fill(0);
    int i = 0;
-   // offsets: 41 x 41 total search, 13 x 13 area per gamma ->
-   // center coord of top left gamma = (x-20+6, y-20+6) = (x-14, y-14)
-   // (using offset from center)
-   int yOffset = 14;
-   int xOffset = 14;
-   for (int curY = pixelY - yOffset; curY < pixelY + yOffset; curY++) {
-      for (int curX = pixelX - xOffset; curX < pixelX + xOffset; curX++) {
+   // 41 x 41 search space
+   int yOffset = 20;
+   int xOffset = 20;
+
+   cout << "start from center " << pixelX << ", " << pixelY << "\n";
+   for (int curY = pixelY - yOffset; curY <= pixelY + yOffset; curY++) {
+      for (int curX = pixelX - xOffset; curX <= pixelX + xOffset; curX++) {
          result.col(i) = getGamma(curX, curY, imgRef);
+         // cout << "coords: " << curX << ", " << curY << "\n";
+         // cout << "column: \n" << result.col(i) << "\n";
          i++;
       }
    }
+   // cout << i << "\n";
    return result;
 }
 
@@ -66,10 +72,10 @@ Eigen::Matrix<int, Dynamic, Dynamic> CoarseDM::dictionaryMatrix(int pixelX, int 
 // such that y - Ax = e, via Orthogonal Matching Pursuit
 Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::Matrix<int, Dynamic, Dynamic>& dictA, const Eigen::VectorXi& targetY) {
   // Setup
-  Eigen::MatrixXf result(dictA.rows(), 2);
-  // result.fill(0);
+  Eigen::MatrixXf result(dictA.cols(), 2);
+  result.fill(0);
 
-  Eigen::MatrixXf xHat(1, dictA.rows());
+  Eigen::MatrixXf xHat(dictA.cols(), 1);
   // Eigen::MatrixXi xHat(169, 1);
   xHat.fill(0);
 
@@ -107,40 +113,68 @@ Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::
       // euclidean norm of curGamma
       // printf("multiply at line 98\n");
       // curValue = abs((curGamma.transpose() * error) / gammaNorm);
-      curValue = (curGamma.transpose() * error).norm() / curGamma.norm();
+      curValue = abs((curGamma.transpose() * error).norm() / curGamma.norm());
       // printf("success line 98\n");
 
       if (curValue > maxValue) {
         maxIndex = j;
       }
     }
-
+    cout << "support chose column: " << maxIndex << "\n";
     support(iteration) = maxIndex;
     iteration++;
-    // update xHat
-    for (int j = 0; j < iteration; j++) {
-      xHat(j) = support(j);
-    }
+
     // update error, errorNorm
 
+    // printf("inverse at line 124\n");
     Eigen::MatrixXf dictA_pseudo_inv = dictA.cast<float>().completeOrthogonalDecomposition().pseudoInverse();
+    // printf("success line 124\n");
+    // printf("multiply at line 125\n");
+    Eigen::MatrixXf xTemp = dictA_pseudo_inv * targetY.cast<float>();
+    // printf("success line 125\n");
+    // cout << "xTemp dimensions are " << xTemp.rows() << " by " << xTemp.cols() << "\n";
 
-    printf("multiply at line 114\n");
+    // update xHat
+    // printf("update line 132\n");
+    xHat.fill(0);
+    // cout << support << "\n";
+    // cout << iteration << "\n";
+    for (int j = 0; j < iteration; j++) {
+      int support_index = support(j);
+      // cout << support_index << "\n";
+      // cout << xHat(support(j)) << "\n";
+      // cout << xTemp(support(j)) << "\n";
+      xHat(support(j)) = xTemp(support(j));
+    }
+    // printf("success line 132\n");
+    //
+    // printf("multiply line 157\n");
+    // // cout << "error = targetY.cast<float>() - (dictA.cast<float>() * xHat)\n";
+    //
+    // printf("xHat rows: %ld\n", xHat.rows());
+    // printf("xHat cols: %ld\n", xHat.cols());
+    //
+    // printf("dictA rows: %ld\n", dictA.rows());
+    // printf("dictA cols: %ld\n", dictA.cols());
+    //
+    // printf("targetY rows: %ld\n", targetY.rows());
+    // printf("targetY cols: %ld\n", targetY.cols());
+    //
+    // printf("error rows: %ld\n", error.rows());
+    // printf("error cols: %ld\n", error.cols());
+    // cout << "targetY dim: " << targetY.rows() << " x " << targetY.cols() << "\n";
+    // cout << "dictA dim: " << dictA.rows() << " x " << dictA.cols() << "\n";
+    // cout << "xHat dim: " << xHat.rows() << " x " << xHat.cols() << "\n";
 
-    printf("xHat rows: %ld\n", xHat.rows());
-    printf("xHat cols: %ld\n", xHat.cols());
+    Eigen::MatrixXf test = dictA.cast<float>() * xHat;
+    // cout << "test dim: " << test.rows() << " x " << test.cols() << "\n";
 
-    printf("dictA rows: %ld\n", dictA.rows());
-    printf("dictA cols: %ld\n", dictA.cols());
-
-    printf("targetY rows: %ld\n", targetY.rows());
-    printf("targetY cols: %ld\n", targetY.cols());
-
-    printf("error rows: %ld\n", error.rows());
-    printf("error cols: %ld\n", error.cols());
-
-    // GOAL:
-    // error = targetY - (dictA * xHat);
+    error = targetY.cast<float>() - (dictA.cast<float>() * xHat);
+    // cout << "xHat:\n" << xHat << "\n";
+    cout << "error: \n" << error << "\n end error \n";
+    // printf("success line 157\n");
+    // printf("error cols: %ld\n", error.cols());
+    // printf("error rows: %ld\n", error.rows());
 
     // Eigen::MatrixXi test;
     // test = dictA * xHat; // this currently fails
@@ -170,10 +204,11 @@ Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::
 
   // result.col(0) = xHat.col(0);
   result.col(0) = xHat.cast<float>();
-  result.col(1) = error.cast<float>();
+  result.col(1).head(dictA.rows()) = error.cast<float>();
 
   // result.col(0) = xHat;
   // result.col(1) = error;
+  cout << "OMP done!";
   return result;
 }
 

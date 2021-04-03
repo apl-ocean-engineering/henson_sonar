@@ -33,8 +33,8 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
   cv::imshow("cartesian", curCartesian);
   cv::waitKey(1);
 
-  int pixelX = 30;
-  int pixelY = 30;
+  int pixelX = 100;
+  int pixelY = 100;
 
   if (first) {
     prevCartesian = curCartesian;
