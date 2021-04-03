@@ -18,14 +18,14 @@ CoarseDM::CoarseDM(){
 // Given image, coordinates
 // Outputs gamma vector centered at given coordinates of given image
 // Assumes 13 x 13 area, single channel grayscale image (type 8UC1)
-Eigen::VectorXi CoarseDM::getGamma(int x, int y, cv::Mat img) {
-   Eigen::VectorXi result(169);
+Eigen::VectorXf CoarseDM::getGamma(int x, int y, cv::Mat img) {
+   Eigen::VectorXf result(169);
    int i = 0;
    int yOffset = (13-1) / 2;
    int xOffset = (13-1) / 2;
    for (int curY = y - yOffset; curY <= y + yOffset; curY++) {
       for (int curX = x - xOffset; curX <= x + xOffset; curX++) {
-         result(i) = img.at<uchar>(curY, curX);
+         result(i) = img.at<float>(curY, curX);
          // result(i) = img.at<uchar>(curX, curY);
          // cout << result(i) << "\n";
          i++;
@@ -44,17 +44,17 @@ Eigen::VectorXi CoarseDM::getGamma(int x, int y, cv::Mat img) {
 // note: might need Eigen:: at start of next line
 // note: user must get target gamma via: getGamma(pixelX, pixelY, imgTarget);
 // Eigen::Matrix<int, 169, 1681> dictionaryMatrix(int pixelX, int pixelY, cv::Mat imgTarget, cv::Mat imgRef) {
-Eigen::Matrix<int, Dynamic, Dynamic> CoarseDM::dictionaryMatrix(int pixelX, int pixelY, cv::Mat imgTarget, cv::Mat imgRef) {
+Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::dictionaryMatrix(int pixelX, int pixelY, cv::Mat imgTarget, cv::Mat imgRef) {
    // Scalar intensity = img.at<uchar>(Point(x, y));
    // Eigen::MatrixXi result(1682, 169);
-   Eigen::MatrixXi result(169, 1681);
+   Eigen::MatrixXf result(169, 1681);
    result.fill(0);
    int i = 0;
    // 41 x 41 search space
    int yOffset = 20;
    int xOffset = 20;
 
-   cout << "start from center " << pixelX << ", " << pixelY << "\n";
+   // cout << "start from center " << pixelX << ", " << pixelY << "\n";
    for (int curY = pixelY - yOffset; curY <= pixelY + yOffset; curY++) {
       for (int curX = pixelX - xOffset; curX <= pixelX + xOffset; curX++) {
          result.col(i) = getGamma(curX, curY, imgRef);
@@ -70,7 +70,7 @@ Eigen::Matrix<int, Dynamic, Dynamic> CoarseDM::dictionaryMatrix(int pixelX, int 
 // Given dictionary matrix A, target vector y
 // Outputs gamma vector x, error vector e (stacked into a 2 x 169 matrix)
 // such that y - Ax = e, via Orthogonal Matching Pursuit
-Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::Matrix<int, Dynamic, Dynamic>& dictA, const Eigen::VectorXi& targetY) {
+Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::Matrix<float, Dynamic, Dynamic>& dictA, const Eigen::VectorXf& targetY) {
   // Setup
   Eigen::MatrixXf result(dictA.cols(), 2);
   result.fill(0);
@@ -86,9 +86,13 @@ Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::
   // targetY = oldY;
 
   // changing this to a float vector causes program to stop compiling due to line 114
-  Eigen::VectorXf error(dictA.rows()); // make error vector, duplicate values in targetY
-  error = targetY.cast<float>();
-  // error = targetY;
+  Eigen::VectorXf error(dictA.cols()); // make error vector, duplicate values in targetY
+  // NOTE: error should definitely be 168 x 1 vector
+  // error = targetY.cast<float>();
+  error = targetY;
+  // cout << "initial error: " << error << "\n";
+  cout << "targetY: \n" << targetY << "\n";
+  cout << "end targetY \n";
 
 
   float errorThresh = 0.1; // placeholder
@@ -97,7 +101,9 @@ Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::
   Eigen::VectorXi support(maxIterations); // init support vector
   support.fill(0);
   // Loop
-  float errorNorm = error.cast<float>().norm();
+  // float errorNorm = error.cast<float>().norm();
+  float errorNorm = error.norm();
+  cout << "error norm: " << errorNorm << "\n";
   while (errorNorm > errorThresh && iteration < maxIterations) {
 
     auto maxValue = 0;
@@ -200,15 +206,21 @@ Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::
     // error = targetY - dictA.cwiseProduct(xHat).sum();
     // printf("success line 114\n");
     // errorNorm = error.cast<float>().norm();
+
+    float oldErrorNorm = errorNorm;
+    errorNorm = error.norm();
+    float normDelta = oldErrorNorm - errorNorm;
+    cout << "error delta (of norm): " << normDelta << "\n";
+    // cout << "error norm: " << errorNorm << "\n";
   }
 
   // result.col(0) = xHat.col(0);
-  result.col(0) = xHat.cast<float>();
-  result.col(1).head(dictA.rows()) = error.cast<float>();
+  result.col(0) = xHat;
+  result.col(1).head(dictA.rows()) = error;
 
   // result.col(0) = xHat;
   // result.col(1) = error;
-  cout << "OMP done!";
+  // cout << "OMP done!";
   return result;
 }
 

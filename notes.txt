@@ -1,3 +1,19 @@
+2021/4/3
+- fixed search areas in getGamma and dictionaryMatrix
+	- for loop needed to use <= instead of <
+- NOTE: double check how to use coordinates in openCV (x, y) or (y, x)
+- convert everything to floats if possible
+- ISSUE:
+	- getting strange values in targetY gamma
+		- values are either very very small (close to 0), or huge
+		- how does converting the opencv image effect scaling of grayscale values?
+			- when i write "float" in c++, does it expect a 32bit float that is being used by openCV?
+	- norm of error vector = NaN?
+		- likely due to huge values, may be reaching limit of float datatype?
+	- original image returned by mitchell's imageproc file is CV_8UC1
+		- make sure it can convert correctly
+
+
 2021/4/1
 - code working better now
 - issue updating xHat

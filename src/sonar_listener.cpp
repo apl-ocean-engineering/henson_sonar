@@ -33,6 +33,10 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
   cv::imshow("cartesian", curCartesian);
   cv::waitKey(1);
 
+  // convert image to float values
+  cv::Mat floatImg;
+  curCartesian.convertTo(floatImg, CV_32FC1);
+
   int pixelX = 100;
   int pixelY = 100;
 
@@ -41,8 +45,8 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
     first = false;
   } else {
     // coarse depth map
-    Eigen::VectorXi target_gamma = coarse_dm.getGamma(pixelX, pixelY, curCartesian);
-    Eigen::Matrix<int, Dynamic, Dynamic> dict_matrix = coarse_dm.dictionaryMatrix(pixelX, pixelY, curCartesian, prevCartesian);
+    Eigen::VectorXf target_gamma = coarse_dm.getGamma(pixelX, pixelY, curCartesian);
+    Eigen::Matrix<float, Dynamic, Dynamic> dict_matrix = coarse_dm.dictionaryMatrix(pixelX, pixelY, curCartesian, prevCartesian);
     // Eigen::Matrix<int, 169, 2> result = coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma);
     Eigen::Matrix<float, Dynamic, Dynamic> result = coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma);
   }
