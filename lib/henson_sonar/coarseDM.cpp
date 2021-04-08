@@ -76,7 +76,6 @@ Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::
   result.fill(0);
 
   Eigen::MatrixXf xHat(dictA.cols(), 1);
-  // Eigen::MatrixXi xHat(169, 1);
   xHat.fill(0);
 
   // reshape targetY if needed: rename parameter to "oldY"
@@ -85,143 +84,68 @@ Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::
   // // Eigen::MatrixXi targetY(169, 1);
   // targetY = oldY;
 
-  // changing this to a float vector causes program to stop compiling due to line 114
+
   Eigen::VectorXf error(dictA.cols()); // make error vector, duplicate values in targetY
-  // NOTE: error should definitely be 168 x 1 vector
-  // error = targetY.cast<float>();
   error = targetY;
-  // cout << "initial error: " << error << "\n";
   cout << "targetY: \n" << targetY << "\n";
   cout << "end targetY \n";
-
+  // cout << "error: \n" << error << "\n end error \n";
 
   float errorThresh = 0.1; // placeholder
   int maxIterations = 10;  // placeholder
+
   int iteration = 0;
   Eigen::VectorXi support(maxIterations); // init support vector
   support.fill(0);
-  // Loop
-  // float errorNorm = error.cast<float>().norm();
   float errorNorm = error.norm();
-  cout << "error norm: " << errorNorm << "\n";
+  // cout << "error norm: " << errorNorm << "\n";
   while (errorNorm > errorThresh && iteration < maxIterations) {
 
-    auto maxValue = 0;
+    float maxValue = 0;
     int maxIndex;
-    float curValue;
+    float curValue = 0;
     Eigen::VectorXf curGamma(dictA.rows());
     curGamma.fill(0);
     for (int j = 0; j < dictA.cols(); j++) {
       curGamma = dictA.col(j);
-      // float gammaNorm = curGamma.cast<float>().norm();
-      // the norm of the matrix product between (curGamma transpose)
-      // and the current error signal, divided by the
-      // euclidean norm of curGamma
-      // printf("multiply at line 98\n");
-      // curValue = abs((curGamma.transpose() * error) / gammaNorm);
       curValue = abs((curGamma.transpose() * error).norm() / curGamma.norm());
-      // printf("success line 98\n");
 
       if (curValue > maxValue) {
         maxIndex = j;
+        maxValue = curValue;
       }
     }
+
+    cout << "max value: " << maxValue << "\n";
     cout << "support chose column: " << maxIndex << "\n";
     support(iteration) = maxIndex;
     iteration++;
 
-    // update error, errorNorm
+    // update error, errorNorm, xHat
 
-    // printf("inverse at line 124\n");
     Eigen::MatrixXf dictA_pseudo_inv = dictA.completeOrthogonalDecomposition().pseudoInverse();
-    // printf("success line 124\n");
-    // printf("multiply at line 125\n");
     Eigen::MatrixXf xTemp = dictA_pseudo_inv * targetY;
-    // printf("success line 125\n");
-    // cout << "xTemp dimensions are " << xTemp.rows() << " by " << xTemp.cols() << "\n";
 
-    // update xHat
-    // printf("update line 132\n");
     xHat.fill(0);
-    // cout << support << "\n";
-    // cout << iteration << "\n";
     for (int j = 0; j < iteration; j++) {
       int support_index = support(j);
-      // cout << support_index << "\n";
-      // cout << xHat(support(j)) << "\n";
-      // cout << xTemp(support(j)) << "\n";
       xHat(support(j)) = xTemp(support(j));
     }
-    // printf("success line 132\n");
-    //
-    // printf("multiply line 157\n");
-    // // cout << "error = targetY.cast<float>() - (dictA.cast<float>() * xHat)\n";
-    //
-    // printf("xHat rows: %ld\n", xHat.rows());
-    // printf("xHat cols: %ld\n", xHat.cols());
-    //
-    // printf("dictA rows: %ld\n", dictA.rows());
-    // printf("dictA cols: %ld\n", dictA.cols());
-    //
-    // printf("targetY rows: %ld\n", targetY.rows());
-    // printf("targetY cols: %ld\n", targetY.cols());
-    //
-    // printf("error rows: %ld\n", error.rows());
-    // printf("error cols: %ld\n", error.cols());
-    // cout << "targetY dim: " << targetY.rows() << " x " << targetY.cols() << "\n";
-    // cout << "dictA dim: " << dictA.rows() << " x " << dictA.cols() << "\n";
-    // cout << "xHat dim: " << xHat.rows() << " x " << xHat.cols() << "\n";
+    // cout << "xHat\n" << xHat << "end xHat\n";
 
-    Eigen::MatrixXf test = dictA * xHat;
-    // cout << "test dim: " << test.rows() << " x " << test.cols() << "\n";
-
-    // TODO: some values from this calculation are evaluating to NaN!
     error = targetY - (dictA * xHat);
-    // cout << "xHat:\n" << xHat << "\n";
-    cout << "error: \n" << error << "\n end error \n";
-    // printf("success line 157\n");
-    // printf("error cols: %ld\n", error.cols());
-    // printf("error rows: %ld\n", error.rows());
-
-    // Eigen::MatrixXi test;
-    // test = dictA * xHat; // this currently fails
-
-    // trying other ways of multiplying dictA * xHat
-    // error = targetY - dictA.cwiseProduct(xHat);
-    // for (int k = 0; k < dictA.cols(); k++) {
-    //   printf("test\n");
-    //   tempDict.col(k) = dictA.col(k) * xHat;
-    //   printf("success\n");
-    // }
-    // error = targetY - tempDict.rowwise().sum();
-    // MatrixXi test;
-    // // test = xHat.cwiseProduct(dictA);
-    // // // test = dictA.cwiseProduct(xHat);
-    // test = xHat.asDiagonal() * dictA;
-    // cout << test << "\n";
-    // printf("test cols: %ld\n", test.cols());
-    // rowSum = test.rowwise().sum();
-    // printf("rowSum cols: %ld", rowSum.cols());
-    // cout << rowSum << "\n";
-    // cout << test << "\n";
-    // error = targetY - dictA.cwiseProduct(xHat).sum();
-    // printf("success line 114\n");
-    // errorNorm = error.cast<float>().norm();
 
     float oldErrorNorm = errorNorm;
     errorNorm = error.norm();
     float normDelta = oldErrorNorm - errorNorm;
-    cout << "error delta (of norm): " << normDelta << "\n";
-    // cout << "error norm: " << errorNorm << "\n";
+    // cout << "error delta (of norm): " << normDelta << "\n";
+
+    cout << "error norm: " << errorNorm << "\n";
   }
 
   // result.col(0) = xHat.col(0);
   result.col(0) = xHat;
   result.col(1).head(dictA.rows()) = error;
-
-  // result.col(0) = xHat;
-  // result.col(1) = error;
-  // cout << "OMP done!";
   return result;
 }
 

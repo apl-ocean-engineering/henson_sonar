@@ -41,16 +41,16 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
   int pixelY = 100;
 
   if (first) {
-    prevCartesian = curCartesian;
+    prevCartesian = floatImg;
     first = false;
   } else {
     // coarse depth map
-    Eigen::VectorXf target_gamma = coarse_dm.getGamma(pixelX, pixelY, curCartesian);
-    Eigen::Matrix<float, Dynamic, Dynamic> dict_matrix = coarse_dm.dictionaryMatrix(pixelX, pixelY, curCartesian, prevCartesian);
+    Eigen::VectorXf target_gamma = coarse_dm.getGamma(pixelX, pixelY, floatImg);
+    Eigen::Matrix<float, Dynamic, Dynamic> dict_matrix = coarse_dm.dictionaryMatrix(pixelX, pixelY, floatImg, prevCartesian);
     // Eigen::Matrix<int, 169, 2> result = coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma);
     Eigen::Matrix<float, Dynamic, Dynamic> result = coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma);
   }
-  prevCartesian = curCartesian;
+  prevCartesian = floatImg;
 }
 int main(int argc, char **argv)
 {
