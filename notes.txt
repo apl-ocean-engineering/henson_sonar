@@ -1,6 +1,66 @@
-TODO:
-- create CMakeLists and package.xml to get this to work with ROS melodic
-- include sonar imaging messages in subscriber node
+2021/4/3
+- fixed search areas in getGamma and dictionaryMatrix
+	- for loop needed to use <= instead of <
+- NOTE: double check how to use coordinates in openCV (x, y) or (y, x)
+- convert everything to floats if possible
+- ISSUE:
+	- getting strange values in targetY gamma
+		- values are either very very small (close to 0), or huge
+		- how does converting the opencv image effect scaling of grayscale values?
+			- when i write "float" in c++, does it expect a 32bit float that is being used by openCV?
+	- norm of error vector = NaN?
+		- likely due to huge values, may be reaching limit of float datatype?
+	- original image returned by mitchell's imageproc file is CV_8UC1
+		- make sure it can convert correctly
+	- bunch of values in error vector are getting set to NaN!
+		- error = targetY - (dictA * xHat);
+		- check that all values in targetY, dictA, xHat are not equal to NaN!
+			- have a feeling that it may be due to not doing any padding on the image
+			  dictionary matrix may be going off the image, but I assume that would throw
+				an error rather than just set to NaN
+
+
+2021/4/1
+- code working better now
+- issue updating xHat
+	- "For every index in S (support vector), xHat = xTemp. otherwise xHat == 0"
+	- so if column 700 was chosen in the first iteration (AKA support = [700, null, null, ...]),
+	  and I am currently looping over support vector with variable j (j currently = 0), do I set
+		xHat[700] = xTemp[700]? or:
+		xHat[dictA.col(700)[0]] = xTemp[dictA.col(700)[0]]
+
+
+2021/3/31
+- stuck at turning error vector into a float datatype
+	- when I do, the multiplication at line 114 stops compiling bc of mixing datatypes
+- also realized i forgot to do the pseduo inverse of dictA for x_temp (as detailed in the OMP writeup)
+
+2021/3/30
+- NOTE: matrix notation is row, column
+- issue of using Dynamic matrices in Eigen
+	- for any multiplication, need to know that the dimensions of the matrices will work?
+	- ! may need to change vectors to 1 x Dynamic matrices
+		- Assertion `lhs.cols() == rhs.rows()
+		- xHat cols: 1 xHat rows: 169 dictA rows: 169
+- Eigen stack memory limit
+	- trying to use big matrices -> errors
+	- need to circumvent (i think need to change compilation settings? maybe cmake)
+	-
+For speeding up matrix multiplication:
+https://stackoverflow.com/questions/39723461/vector-matrix-multiplication-with-eigen
+1. try converting all vectors to 1 x Dynamic Matrices
+2. Need to pass parameters by REFERENCE, not by value!
+left off: having trouble around line 114 in coarseDM
+can't get dictionary matrix (169 by 1681) to multiply with xHat (169 by 1)
+
+Still can't figure out why it's broken... error message:
+xHat cols: 1
+xHat rows: 169
+dictA cols: 1681
+dictA rows: 169
+sonar_listener: /usr/include/eigen3/Eigen/src/Core/Product.h:95: Eigen::Product<Lhs, Rhs, Option>::Product(const Lhs&, const Rhs&) [with _Lhs = Eigen::Matrix<int, -1, -1>; _Rhs = Eigen::Matrix<int, -1, -1>; int Option = 0; Eigen::Product<Lhs, Rhs, Option>::Lhs = Eigen::Matrix<int, -1, -1>; Eigen::Product<Lhs, Rhs, Option>::Rhs = Eigen::Matrix<int, -1, -1>]: Assertion `lhs.cols() == rhs.rows() && "invalid matrix product" && "if you wanted a coeff-wise or a dot product use the respective explicit functions"' failed.
+Aborted (core dumped)
+
 
 
 

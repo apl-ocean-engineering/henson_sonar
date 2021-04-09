@@ -73,11 +73,11 @@ array<int, 2> hIndexToXY(int hindex, int n) {
   return result;
 }
 
-int main() {
-  int n = 4;
-  array<int, 2> curPoint;
-  for(int i = 0; i < n * n; i++) {
-    curPoint = hIndexToXY(i, n);
-    cout << curPoint[0] << ", " << curPoint[1] << endl;
-  }
-}
+// int main() {
+//   int n = 4;
+//   array<int, 2> curPoint;
+//   for(int i = 0; i < n * n; i++) {
+//     curPoint = hIndexToXY(i, n);
+//     cout << curPoint[0] << ", " << curPoint[1] << endl;
+//   }
+// }
