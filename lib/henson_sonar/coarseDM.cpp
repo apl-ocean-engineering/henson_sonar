@@ -87,7 +87,7 @@ Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::
   error = targetY/targetY.norm();
 
   float errorThresh = 0.1; // placeholder
-  int maxIterations = 10;  // placeholder
+  int maxIterations = 30;  // placeholder
 
   int iteration = 0;
 
@@ -137,6 +137,7 @@ Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::
    errorNorm = error.norm();
    ROS_DEBUG_STREAM("Error norm " << errorNorm << " for iteration " << iteration);
    float normDelta = oldErrorNorm - errorNorm;
+   iteration++;
    if (errorNorm < errorThresh){
       ROS_INFO_STREAM("Found solution with error norm of " << errorNorm << " which is below the threshold of " << errorThresh);
       break;
@@ -150,7 +151,7 @@ Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::
   result.col(0) = xHat.col(0);
   result.col(0) = xHat;
   result.col(1).head(dictA.rows()) = error;
-  iteration++;
+  // iteration++;
   return result;
 }
 

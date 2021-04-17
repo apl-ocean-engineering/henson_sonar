@@ -39,6 +39,7 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
 
   int pixelX = 100;
   int pixelY = 100;
+  // choose random
 
   if (first) {
     prevCartesian = floatImg;
@@ -49,6 +50,20 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
     Eigen::Matrix<float, Dynamic, Dynamic> dict_matrix = coarse_dm.dictionaryMatrix(pixelX, pixelY, floatImg, prevCartesian);
     // Eigen::Matrix<int, 169, 2> result = coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma);
     Eigen::Matrix<float, Dynamic, Dynamic> result = coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma);
+
+    int idx = 0;
+    float omp_image_data[41][41];
+    for (int i = 0; i < 41; i++) {
+      for (int j = 0; j < 41; j++) {
+        omp_image_data[i][j] = result(idx);
+        idx++;
+      }
+    }
+    cv::Mat omp_image = Mat(41, 41, CV_32FC1, &omp_image_data);
+    cv::Mat dst;
+    cv::resize(omp_image, dst, cv::Size(omp_image.cols * 10, omp_image.rows * 10));
+    cv::imshow("OMP output", dst);
+    cv::waitKey(1);
   }
   prevCartesian = floatImg;
 }
