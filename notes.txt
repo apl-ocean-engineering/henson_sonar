@@ -1,3 +1,66 @@
+2021/4/25
+- change how OMP translates to image
+  - now want to have the highest absolute value from output
+    set to pixel value of what was passed in
+    - still have the pass by reference stuff get changed,
+      OR just have the OMP function return that highest value?
+    - returning just highest value would be way simpler -> do that
+
+- interpolation
+  - for each pixel chosen for OMP estimation, create a 13 x 13 box around it
+  - make a histogram based on this box. choose bin with highest number.
+    - how many bins?
+    - TODO: change chosen OMP coords to a vector you push_back into
+      - allows you to switch easily between grid of coordinates
+        and what they actually use in the paper
+  - set all pixels in output image within the 13 x 13 box to the average value of the chosen bin
+    - color scaling?
+
+- coordinate selection
+  - ref image intensity used as probability density function to generate sample points
+    - basically you just want to choose random points that have a high intensity
+    - choose random point -> keep if it's intensity is above threshold
+      - (DONE) TODO: make histogram of ref image intensities to determine appropriate threshold
+        - basic distribution of point intensities:
+          between 0 and 0.25:   0
+          between 0.25 and 0.5: 230905
+          between 0.5 and 0.75: 31244
+          between 0.75 and 1.0: 2843
+          total of 264992 points
+        - chosen threshold of 0.75?
+        - num chosen points = 1/17 * num pixels in ref image?
+          - would be 15588 points in our case -> lower the threshold?
+  - 2 references listed here
+    - C. Schretter and H. Niederreiter, “A direct inversion method for non-
+      uniform quasi-random point sequences,” Monte Carlo Methods Appl.,
+      vol. 19, no. 1, pp. 1–9, 2013
+    - C.-C. Wu and Y.-I. Chang, “Approximately even partition algorithm for
+      coding the Hilbert curve of arbitrary-sized image,” IET Image Process.,
+      vol. 6, no. 6, pp. 746–755, 2012
+  - NOTE: points are initially randomly chosen by picking random number along
+          Hilbert Space-Filling curve! Instead of generating 2 random points?
+  - TODO: add HSFC (for rectangular areas)? or just randomly generate x and y?
+  - ISSUE: getting linker errors with point selection function.
+    - think it could be related to having return type of std::vector<std::vector<int>>
+    - sonar_listener.cpp:(.text+0x797): undefined reference to `CoarseDM::getSamplePoints(cv::Mat)'
+- ISSUE: more linker errors... this time in getTargetErrorOMP
+  - sonar_listener.cpp:(.text+0x972): undefined reference to `CoarseDM::getTargetErrorOMP(Eigen::Matrix<float, -1, -1, 0, -1, -1>&, Eigen::Matrix<float, -1, 1, 0, -1, 1>&, Eigen::Matrix<float, -1, 1, 0, -1, 1>&, Eigen::Matrix<float, -1, 1, 0, -1, 1>&)'
+
+
+
+2021/4/22
+- fix: converting original cartesian to float image didnt actually change the pixel values
+  needed to include /= 255 to scale values
+- fix: result of OMP estimation was saving weird values in the column dedicated to error vector
+- fix xHat = 0 issue. to do so, look at xTemp, supports, dictASupport
+	- xTemp has some negative values? not sure if this is normal
+- read paper to develop a plan of action
+
+2021/4/17
+- pad sonar image with 41 black pixels
+- set up collage of OMP outputs
+- read research paper to figure out how many points to do OMP at
+
 2021/4/3
 - fixed search areas in getGamma and dictionaryMatrix
 	- for loop needed to use <= instead of <

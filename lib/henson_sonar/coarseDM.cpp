@@ -5,8 +5,12 @@
 #include <iostream>
 #include <Eigen/Dense>
 #include <opencv2/imgproc.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/highgui.hpp>
 #include "henson_sonar/coarseDM.h"
 #include "ros/ros.h"
+#include <fstream>
 
 #include <ros/console.h>
 
@@ -73,21 +77,26 @@ Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::dictionaryMatrix(int pixelX, in
 // Given dictionary matrix A, target vector y
 // Outputs gamma vector x, error vector e (stacked into a 2 x 169 matrix)
 // such that y - Ax = e, via Orthogonal Matching Pursuit
-Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::Matrix<float, Dynamic, Dynamic>& dictA, const Eigen::VectorXf& targetY) {
+void getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, const VectorXf& targetY, VectorXf& xHatOut, VectorXf& errorOut) {
   // Setup
-  Eigen::MatrixXf result(dictA.cols(), 2);
-  result.fill(0);
+  // Eigen::MatrixXf result(dictA.cols(), 2);
+  // result.fill(0);
 
-  Eigen::MatrixXf xHat(dictA.cols(), 1);
+  xHatOut.fill(0);
+  errorOut.fill(0);
+
+  // cout << dictA << "\n";
+
+  Eigen::VectorXf xHat(dictA.cols());
   xHat.fill(0);
 
   ROS_INFO("PROCESSING NEW IMAGE");
 
-  Eigen::VectorXf error(dictA.cols()); // make error vector, duplicate values in targetY
+  Eigen::VectorXf error(dictA.rows()); // make error vector, duplicate values in targetY
   error = targetY/targetY.norm();
 
   float errorThresh = 0.1; // placeholder
-  int maxIterations = 30;  // placeholder
+  int maxIterations = 200;  // placeholder
 
   int iteration = 0;
 
@@ -124,13 +133,23 @@ Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::
 
    //Find least-squares
    Eigen::MatrixXf xTemp = dictASupport.bdcSvd(ComputeThinU | ComputeThinV).solve(targetY);
+   // cout << "xTemp: \n" << xTemp << "\n";
 
    idx=0;
+   // cout << "supports: \n";
+
+   ofstream myfile;
+   myfile.open("debug.txt");
+
    for (int support : supports){
+     // cout << support << "\n";
+     myfile << "set xHat[" << support << "] to " << xTemp(idx) << "\n";
       xHat(support) = xTemp(idx);
+      myfile << xHat(support) << "\n";
       idx++;
    }
-
+   myfile << "updated xhat: \n" << xHat << "\n";
+   myfile.close();
    error = targetY - (dictA * xHat);
 
    float oldErrorNorm = errorNorm;
@@ -138,23 +157,84 @@ Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::getTargetErrorOMP(const Eigen::
    ROS_DEBUG_STREAM("Error norm " << errorNorm << " for iteration " << iteration);
    float normDelta = oldErrorNorm - errorNorm;
    iteration++;
+   // xHatOut = xHat;
+   // errorOut = error;
    if (errorNorm < errorThresh){
       ROS_INFO_STREAM("Found solution with error norm of " << errorNorm << " which is below the threshold of " << errorThresh);
+      // ofstream myfile;
+      // myfile.open("debug3.txt");
+      // myfile << "final xHat: \n" << xHat << "\n";
+      // myfile.close();
+      // xHatOut = xHat;
+      // errorOut = error;
       break;
    }
    else if (iteration > maxIterations){
       ROS_WARN_STREAM("Maximium iterations of " << maxIterations << " exceeded. Breaking");
+      // ofstream myfile;
+      // myfile.open("debug3.txt");
+      // myfile << "final xHat: \n" << xHat << "\n";
+      // myfile.close();
       break;
    }
   }
 
-  result.col(0) = xHat.col(0);
-  result.col(0) = xHat;
-  result.col(1).head(dictA.rows()) = error;
-  // iteration++;
-  return result;
+  // cout << "final xhat: \n" << xHat << "\n";
+  // cout << "result is " << result.cols() << " columns by " << result.rows() << "rows \n";
+  // ofstream myfile;
+  // myfile.open("debug4.txt");
+  // myfile << "final xHat before saving into result: \n" << xHat << "\n";
+  // myfile.close();
+  // result.col(0) = xHat;
+  // result.col(1).head(dictA.rows()) = error;
+
+  // myfile.open("debug2.txt");
+  //
+  //
+  // myfile << "final output: \n" << result << "\n";
+  // myfile.close();
+  // return result;
 }
 
-// int main (int argc, char *argv[]) {
-//   return 0;
+// std::vector<std::vector<int>> getSamplePoints(cv::Mat img) {
+//   std::vector<std::vector<int>> result;
+//   return result;
+// }
+
+// given reference image, returns sample points based on
+// probability density function using intensity as threshold
+// std::vector<std::vector<int>> getSamplePoints(cv::Mat img) {
+//   std::vector<std::vector<int>> result;
+//
+//   // basic histogram code from:
+//   // https://docs.opencv.org/3.4/d8/dbc/tutorial_histogram_calculation.html
+//   // int histSize = 256;
+//   // float range[] = {0,1};
+//   // const float* histRange = { range };
+//   // bool uniform = true, accumulate = false;
+//   // cv::Mat hist;
+//   // calcHist(&img, 1, 0, Mat(), hist, 1, &histSize, &histRange, uniform, accumulate);
+//   // int hist_w = 512, hist_h = 400;
+//   // int bin_w = cv::cvRound( (double) hist_w/histSize);
+//   // cv::Mat histImg(hist_h, hist_w, CV_8UC3, Scalar(0,0,0));
+//   // cv::normalize(hist, hist, 0, histImage.rows, NORM_MINMAX, -1, cv::Mat() );
+//   // cv::imshow("histogram?", histImg);
+//   // cv::waitKey(1);result(i) = img.at<float>(curY, curX);
+//
+//   // PDF based on image intensity (?)
+//   float intensity_thresh = 0.6;   // arbitrary; if too high, will not reach cap!
+//   int sample_cap = 4000;          // arbitrary; paper says this should be 1/17th of
+//                                   //            total pixels in image? unsure
+//   int num_samples = 0;
+//   while (num_samples < sample_cap) {
+//     // TODO: determine whether to generate x and y OR use hilbert space filling curve
+//     int curX = rand() % img.cols;
+//     int curY = rand() % img.rows;
+//     float curVal = img.at<float>(curY, curX);
+//     if (curVal > intensity_thresh) {
+//       result.push_back(curVal);
+//       num_samples++;
+//     }
+//   }
+//   return result;
 // }

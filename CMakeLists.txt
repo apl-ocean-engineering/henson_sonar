@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 project(henson_sonar)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
 
 # Dependencies
 find_package(catkin REQUIRED COMPONENTS
@@ -19,7 +19,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES henson_sonar
   CATKIN_DEPENDS imaging_sonar_msgs roscpp rospy
-  DEPENDS system_lib Eigen opencv2
+  DEPENDS Eigen opencv2
 )
 
 file(GLOB DM_SRCS
@@ -40,6 +40,7 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 add_executable(sonar_listener src/sonar_listener.cpp)
 
 target_link_libraries(sonar_listener ${catkin_LIBRARIES} ${OpenCV_LIBS} henson_sonar_proc henson_sonar_depth_map)
+
 
 
 ## System dependencies are found with CMake's conventions
