@@ -1,3 +1,8 @@
+Hey Mitchell, I'm running into a few issues with catkin_make all of a sudden.
+After running catkin_make clean, on subsequent catkin_make calls I'm getting an error of "imaging_sonar_msgs/SonarImage.h: No such file or directory"
+Additionally there are linker errors where it seems like both Eigen and OpenCV are no longer being found, specifically I keep getting "undefined reference" errors when both coarseDM.cpp and coarseDM.h have everything matching. If I don't call the "undefined" functions in sonar_listener.cpp everything compiles fine. Do you think it's a CMake issue, or something to do with my install of Eigen / OpenCV?
+
+
 2021/4/25
 - change how OMP translates to image
   - now want to have the highest absolute value from output

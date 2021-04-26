@@ -77,20 +77,21 @@ Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::dictionaryMatrix(int pixelX, in
 // Given dictionary matrix A, target vector y
 // Outputs gamma vector x, error vector e (stacked into a 2 x 169 matrix)
 // such that y - Ax = e, via Orthogonal Matching Pursuit
-void getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, const VectorXf& targetY, VectorXf& xHatOut, VectorXf& errorOut) {
+// void getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, const VectorXf& targetY, VectorXf& xHatOut, VectorXf& errorOut) {
+float getTargetErrorOMP(Matrix<float, Dynamic, Dynamic>& dictA, VectorXf& targetY) {
   // Setup
   // Eigen::MatrixXf result(dictA.cols(), 2);
   // result.fill(0);
 
-  xHatOut.fill(0);
-  errorOut.fill(0);
+  // xHatOut.fill(0);
+  // errorOut.fill(0);
 
   // cout << dictA << "\n";
 
+  ROS_INFO("PROCESSING NEW IMAGE");
+
   Eigen::VectorXf xHat(dictA.cols());
   xHat.fill(0);
-
-  ROS_INFO("PROCESSING NEW IMAGE");
 
   Eigen::VectorXf error(dictA.rows()); // make error vector, duplicate values in targetY
   error = targetY/targetY.norm();
@@ -194,12 +195,14 @@ void getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, const Vecto
   // myfile << "final output: \n" << result << "\n";
   // myfile.close();
   // return result;
+  return xHat.maxCoeff();
+
 }
 
-// std::vector<std::vector<int>> getSamplePoints(cv::Mat img) {
-//   std::vector<std::vector<int>> result;
-//   return result;
-// }
+std::vector<std::vector<int>> getSamplePoints(cv::Mat img) {
+  std::vector<std::vector<int>> result;
+  return result;
+}
 
 // given reference image, returns sample points based on
 // probability density function using intensity as threshold

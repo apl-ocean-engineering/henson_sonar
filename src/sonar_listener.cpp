@@ -47,7 +47,6 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
     prevCartesian = floatImg;
     first = false;
   } else {
-    // std::vector<std::vector<int>> sample_points = coarse_dm.getSamplePoints(curCartesian);
 
     // int count0 = 0;
     // int count1 = 0;
@@ -78,6 +77,8 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
 
     // get OMP output of points in the image
     cv::Mat omp_collage = Mat(curCartesian.rows, curCartesian.cols, CV_32FC1);
+    // TODO: change nested for-loops to function call:
+    std::vector<std::vector<int>> sample_points = coarse_dm.getSamplePoints(curCartesian);
     for (int k = 1; k < 7; k++) {
       for (int l = 1; l < 16; l++) {
         int pixelX = 41 * l;
@@ -87,8 +88,8 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
         Eigen::VectorXf target_gamma = coarse_dm.getGamma(pixelX, pixelY, floatImg);
         // cout << "target: \n" << target_gamma << "\n";
         Eigen::Matrix<float, Dynamic, Dynamic> dict_matrix = coarse_dm.dictionaryMatrix(pixelX, pixelY, floatImg, prevCartesian);
-        Eigen::VectorXf error(target_gamma.size());
-        Eigen::VectorXf xHat(dict_matrix.cols());
+        // Eigen::VectorXf error(target_gamma.size());
+        // Eigen::VectorXf xHat(dict_matrix.cols());
         // xHat.fill(0);
         // error.fill(0);
 
@@ -96,7 +97,8 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
         // Eigen::VectorXf xHat;
 
         // CURRENTLY NOT WORKING, FIX LATER
-        coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma, xHat, error);
+        // coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma, xHat, error);
+        float omp_max = coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma);
 
         // cout << "omp output: \n" << omp_output << "\n";
         // cout << "omp error: \n" << omp_output.col(1) << "\n";
