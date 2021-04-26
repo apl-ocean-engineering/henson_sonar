@@ -93,12 +93,14 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
         // xHat.fill(0);
         // error.fill(0);
 
-        // Eigen::VectorXf error;
-        // Eigen::VectorXf xHat;
+        Eigen::VectorXf error;
+        Eigen::VectorXf xHat;
 
         // CURRENTLY NOT WORKING, FIX LATER
         // coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma, xHat, error);
-        float omp_max = coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma);
+        float omp_max = coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma, xHat, error);
+
+        cout << omp_max << "\n";
 
         // cout << "omp output: \n" << omp_output << "\n";
         // cout << "omp error: \n" << omp_output.col(1) << "\n";
@@ -112,10 +114,10 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
         // }
 
         // UNCOMMENT LATER
-        // ofstream myfile;
-        // myfile.open("debug5.txt");
-        // myfile << "xhat from omp: \n" << xHat << "\n";
-        // myfile.close();
+        ofstream myfile;
+        myfile.open("OMP_from_listener.txt", std::ios::app);
+        myfile << "xhat from omp: \n" << xHat << "\n";
+        myfile.close();
         // int idx = 0;
         // for (int i = 0; i < 41; i++) {
         //   for (int j = 0; j < 41; j++) {

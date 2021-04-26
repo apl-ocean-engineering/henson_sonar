@@ -19,8 +19,8 @@ public:
   // Eigen::Matrix<int, 2, 169> getTargetErrorOMP(Matrix<int, 1681, 169> dictA, VectorXi targetX);
   // Eigen::Matrix<float, Dynamic, Dynamic> getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, const VectorXf& targetX);
   // void getTargetErrorOMP(Matrix<float, Dynamic, Dynamic>& dictA, VectorXf& targetY, VectorXf& xHatOut, VectorXf& errorOut);
-  float getTargetErrorOMP(Matrix<float, Dynamic, Dynamic>& dictA, VectorXf& targetY);
-  std::vector<std::vector<int>> getSamplePoints(cv::Mat img);
+  float getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, const VectorXf& targetY, VectorXf& xHatOut, VectorXf& errorOut);
+  std::vector<std::vector<int>> getSamplePoints(const cv::Mat& img);
 private:
 
 
