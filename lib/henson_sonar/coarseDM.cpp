@@ -78,7 +78,7 @@ Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::dictionaryMatrix(int pixelX, in
 // Outputs gamma vector x, error vector e (stacked into a 2 x 169 matrix)
 // such that y - Ax = e, via Orthogonal Matching Pursuit
 // void getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, const VectorXf& targetY, VectorXf& xHatOut, VectorXf& errorOut) {
-float getTargetErrorOMP(Matrix<float, Dynamic, Dynamic>& dictA, VectorXf& targetY) {
+float CoarseDM::getTargetErrorOMP(Matrix<float, Dynamic, Dynamic>& dictA, VectorXf& targetY) {
   // Setup
   // Eigen::MatrixXf result(dictA.cols(), 2);
   // result.fill(0);
@@ -199,7 +199,7 @@ float getTargetErrorOMP(Matrix<float, Dynamic, Dynamic>& dictA, VectorXf& target
 
 }
 
-std::vector<std::vector<int>> getSamplePoints(cv::Mat img) {
+std::vector<std::vector<int>> CoarseDM::getSamplePoints(cv::Mat img) {
   std::vector<std::vector<int>> result;
   return result;
 }
