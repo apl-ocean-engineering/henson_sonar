@@ -21,6 +21,7 @@ public:
   // void getTargetErrorOMP(Matrix<float, Dynamic, Dynamic>& dictA, VectorXf& targetY, VectorXf& xHatOut, VectorXf& errorOut);
   float getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, const VectorXf& targetY, VectorXf& xHatOut, VectorXf& errorOut);
   std::vector<std::vector<int>> getSamplePoints(const cv::Mat& img);
+  void interpolateOMPimage(cv::Mat& img, int x, int y);
 private:
 
 

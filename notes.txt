@@ -1,10 +1,19 @@
-Hey Mitchell, I'm running into a few issues with catkin_make all of a sudden.
-After running catkin_make clean, on subsequent catkin_make calls I'm getting an error of "imaging_sonar_msgs/SonarImage.h: No such file or directory"
-Additionally there are linker errors where it seems like both Eigen and OpenCV are no longer being found, specifically I keep getting "undefined reference" errors when both coarseDM.cpp and coarseDM.h have everything matching. If I don't call the "undefined" functions in sonar_listener.cpp everything compiles fine. Do you think it's a CMake issue, or something to do with my install of Eigen / OpenCV?
+2021/4/27
+- interpolation
+- clean up code
+- Q: looking at OMP coarse DM stuff, "only the displacement d(ξ) corresponding to
+the coefficient with the highest magnitude is kept for our further
+processing"
+  - say xHat has -1.2 and 1.1 in it. -1.2 has highest magnitude -> do I return -1.2 or 1.2?
+- NOTE: img height: 338 with 41 px border -> actually 256
+        img width : 784 with 41 px border -> actually 702
+        179712 pixels -> 10571 sample points? (1/17th)
+        img.cols -> x, img.rows -> y
+
 
 
 2021/4/25
-- change how OMP translates to image
+- DONE change how OMP translates to image
   - now want to have the highest absolute value from output
     set to pixel value of what was passed in
     - still have the pass by reference stuff get changed,
@@ -15,17 +24,17 @@ Additionally there are linker errors where it seems like both Eigen and OpenCV a
   - for each pixel chosen for OMP estimation, create a 13 x 13 box around it
   - make a histogram based on this box. choose bin with highest number.
     - how many bins?
-    - TODO: change chosen OMP coords to a vector you push_back into
+    - DONE: change chosen OMP coords to a vector you push_back into
       - allows you to switch easily between grid of coordinates
         and what they actually use in the paper
   - set all pixels in output image within the 13 x 13 box to the average value of the chosen bin
     - color scaling?
 
-- coordinate selection
+- DONE coordinate selection
   - ref image intensity used as probability density function to generate sample points
     - basically you just want to choose random points that have a high intensity
     - choose random point -> keep if it's intensity is above threshold
-      - (DONE) TODO: make histogram of ref image intensities to determine appropriate threshold
+      - DONE: make histogram of ref image intensities to determine appropriate threshold
         - basic distribution of point intensities:
           between 0 and 0.25:   0
           between 0.25 and 0.5: 230905
@@ -45,11 +54,6 @@ Additionally there are linker errors where it seems like both Eigen and OpenCV a
   - NOTE: points are initially randomly chosen by picking random number along
           Hilbert Space-Filling curve! Instead of generating 2 random points?
   - TODO: add HSFC (for rectangular areas)? or just randomly generate x and y?
-  - ISSUE: getting linker errors with point selection function.
-    - think it could be related to having return type of std::vector<std::vector<int>>
-    - sonar_listener.cpp:(.text+0x797): undefined reference to `CoarseDM::getSamplePoints(cv::Mat)'
-- ISSUE: more linker errors... this time in getTargetErrorOMP
-  - sonar_listener.cpp:(.text+0x972): undefined reference to `CoarseDM::getTargetErrorOMP(Eigen::Matrix<float, -1, -1, 0, -1, -1>&, Eigen::Matrix<float, -1, 1, 0, -1, 1>&, Eigen::Matrix<float, -1, 1, 0, -1, 1>&, Eigen::Matrix<float, -1, 1, 0, -1, 1>&)'
 
 
 

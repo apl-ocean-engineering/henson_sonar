@@ -18,6 +18,10 @@ using namespace Eigen;
 using namespace cv;
 using namespace std;
 
+const float OMP_ERROR_THRESH = 0.35;
+const int   OMP_ITERATION_MAX = 100;
+const int   OMP_NUM_SAMPLES = 2000;
+
 CoarseDM::CoarseDM(){
 
 }
@@ -94,8 +98,8 @@ float CoarseDM::getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, 
   Eigen::VectorXf error(dictA.rows()); // make error vector, duplicate values in targetY
   error = targetY/targetY.norm();
 
-  float errorThresh = 0.1; // placeholder
-  int maxIterations = 100;  // placeholder
+  // float errorThresh = 0.13; // placeholder
+  // int maxIterations = 100;  // placeholder
 
   int iteration = 0;
 
@@ -103,7 +107,7 @@ float CoarseDM::getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, 
   float errorNorm = error.norm();
    while (true){
    float maxValue = 0;
-   int maxIndex;
+   int maxIndex = 0;
     for (int j=0; j<dictA.cols(); j++){
        Eigen::VectorXf Aj = dictA.col(j);
        float currValue = abs(Aj.transpose()*error); // curGamma.norm();
@@ -158,8 +162,8 @@ float CoarseDM::getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, 
    iteration++;
    // xHatOut = xHat;
    // errorOut = error;
-   if (errorNorm < errorThresh){
-      ROS_INFO_STREAM("Found solution with error norm of " << errorNorm << " which is below the threshold of " << errorThresh);
+   if (errorNorm < OMP_ERROR_THRESH){
+      ROS_INFO_STREAM("Found solution with error norm of " << errorNorm << " which is below the threshold of " << OMP_ERROR_THRESH);
       xHatOut = xHat;
       errorOut = error;
       ofstream myfile;
@@ -170,8 +174,8 @@ float CoarseDM::getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, 
 
       break;
    }
-   else if (iteration > maxIterations){
-      ROS_WARN_STREAM("Maximium iterations of " << maxIterations << " exceeded. Breaking");
+   else if (iteration > OMP_ITERATION_MAX){
+      ROS_WARN_STREAM("Maximium iterations of " << OMP_ITERATION_MAX << " exceeded. Breaking");
       ofstream myfile;
       myfile.open("OMP_break_loop.txt");
       myfile << "final xHat: \n" << xHat << "\n";
@@ -191,40 +195,27 @@ float CoarseDM::getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, 
   // result.col(0) = xHat;
   // result.col(1).head(dictA.rows()) = error;
 
-  ofstream myfile;
-  myfile.open("OMP_final_return.txt", std::ios::app);
+  // ofstream myfile;
+  // myfile.open("OMP_final_return.txt", std::ios::app);
+  //
+  //
+  // myfile << "xHat: \n" << xHat << "\n error: \n" << error << "\n";
+  // myfile << "xHat OUT: \n" << xHatOut << "\n error OUT: \n" << errorOut << "\n";
+  // myfile.close();
 
-
-  myfile << "xHat: \n" << xHat << "\n error: \n" << error << "\n";
-  myfile << "xHat OUT: \n" << xHatOut << "\n error OUT: \n" << errorOut << "\n";
-  myfile.close();
-  return xHat.maxCoeff();
+  return max(xHat.maxCoeff(), abs(xHat.minCoeff()));
 }
 
 std::vector<std::vector<int>> CoarseDM::getSamplePoints(const cv::Mat &img) {
   std::vector<std::vector<int>> result;
 
-    // basic histogram code from:
-    // https://docs.opencv.org/3.4/d8/dbc/tutorial_histogram_calculation.html
-    // int histSize = 256;
-    // float range[] = {0,1};
-    // const float* histRange = { range };
-    // bool uniform = true, accumulate = false;
-    // cv::Mat hist;
-    // calcHist(&img, 1, 0, Mat(), hist, 1, &histSize, &histRange, uniform, accumulate);
-    // int hist_w = 512, hist_h = 400;
-    // int bin_w = cv::cvRound( (double) hist_w/histSize);
-    // cv::Mat histImg(hist_h, hist_w, CV_8UC3, Scalar(0,0,0));
-    // cv::normalize(hist, hist, 0, histImage.rows, NORM_MINMAX, -1, cv::Mat() );
-    // cv::imshow("histogram?", histImg);
-    // cv::waitKey(1);result(i) = img.at<float>(curY, curX);
-
     // PDF based on image intensity (?)
     float intensity_thresh = 0.6;   // arbitrary; if too high, will not reach cap!
-    int sample_cap = 4000;          // arbitrary; paper says this should be 1/17th of
+    // int sample_cap = 100;          // arbitrary; paper says this should be 1/17th of
                                     //            total pixels in image? unsure
     int num_samples = 0;
-    while (num_samples < sample_cap) {
+    // while (num_samples < sample_cap) {
+    while (num_samples < OMP_NUM_SAMPLES) {
       // TODO: determine whether to generate x and y OR use hilbert space filling curve
       int curX = rand() % img.cols;
       int curY = rand() % img.rows;
@@ -238,40 +229,43 @@ std::vector<std::vector<int>> CoarseDM::getSamplePoints(const cv::Mat &img) {
   return result;
 }
 
-// given reference image, returns sample points based on
-// probability density function using intensity as threshold
-// std::vector<std::vector<int>> getSamplePoints(cv::Mat img) {
-//   std::vector<std::vector<int>> result;
-//
-//   // basic histogram code from:
-//   // https://docs.opencv.org/3.4/d8/dbc/tutorial_histogram_calculation.html
-//   // int histSize = 256;
-//   // float range[] = {0,1};
-//   // const float* histRange = { range };
-//   // bool uniform = true, accumulate = false;
-//   // cv::Mat hist;
-//   // calcHist(&img, 1, 0, Mat(), hist, 1, &histSize, &histRange, uniform, accumulate);
-//   // int hist_w = 512, hist_h = 400;
-//   // int bin_w = cv::cvRound( (double) hist_w/histSize);
-//   // cv::Mat histImg(hist_h, hist_w, CV_8UC3, Scalar(0,0,0));
-//   // cv::normalize(hist, hist, 0, histImage.rows, NORM_MINMAX, -1, cv::Mat() );
-//   // cv::imshow("histogram?", histImg);
-//   // cv::waitKey(1);result(i) = img.at<float>(curY, curX);
-//
-//   // PDF based on image intensity (?)
-//   float intensity_thresh = 0.6;   // arbitrary; if too high, will not reach cap!
-//   int sample_cap = 4000;          // arbitrary; paper says this should be 1/17th of
-//                                   //            total pixels in image? unsure
-//   int num_samples = 0;
-//   while (num_samples < sample_cap) {
-//     // TODO: determine whether to generate x and y OR use hilbert space filling curve
-//     int curX = rand() % img.cols;
-//     int curY = rand() % img.rows;
-//     float curVal = img.at<float>(curY, curX);
-//     if (curVal > intensity_thresh) {
-//       result.push_back(curVal);
-//       num_samples++;
-//     }
-//   }
-//   return result;
-// }
+void CoarseDM::interpolateOMPimage(cv::Mat& img, int x, int y) {
+  // make histogram of 13 x 13 area around point
+  // basic histogram code from:
+  // https://docs.opencv.org/3.4/d8/dbc/tutorial_histogram_calculation.html
+  // get 13x13 window centered at x,y
+  cv::Range cols(x-6, x+6);
+  cv::Range rows(y-6, y+6);
+  cv::Mat window = img(rows, cols);
+  int histSize = 20; // number of bins: not sure how to configure
+  float binSize = 1.0 / histSize; // range of each bin
+  float range[] = {0,1};
+  const float* histRange = { range };
+  bool uniform = true, accumulate = false;
+  cv::Mat hist;
+  calcHist(&window, 1, 0, Mat(), hist, 1, &histSize, &histRange, uniform, accumulate);
+  std::vector<int> histData(hist.rows*hist.cols);
+  histData = hist.data;
+  float windowVal;
+
+  int max_bin_index = distance(histData, histData + histData.size()); // not sure if this works
+  float binMin = binSize * max_bin_index;
+  float binMax = binSize * (max_bin_index+1);
+  float val = (binMin+binMax)/2;
+  for (int i = x-6; i < x+6; i++) {
+    for (int j = y-6; j < y-6; j++) {
+      img.at<float>(j,i) = val;
+    }
+  }
+
+  ofstream myfile;
+  myfile.open("OMP_sample_histogram.txt", std::ios::app);
+  myfile << "13x13 window histogram: \n" << hist << "\n";
+  myfile.close();
+  // int hist_w = 512, hist_h = 400;
+  // int bin_w = cv::cvRound( (double) hist_w/histSize);
+  // cv::Mat histImg(hist_h, hist_w, CV_8UC3, Scalar(0,0,0));
+  // cv::normalize(hist, hist, 0, histImage.rows, NORM_MINMAX, -1, cv::Mat() );
+  // cv::imshow("histogram?", histImg);
+  // cv::waitKey(1);result(i) = img.at<float>(curY, curX);
+}

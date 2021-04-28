@@ -32,19 +32,23 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
   image_proc.parseImg(msg);
   // cv::Mat polar = image_proc.polarImage();
   cv::Mat cartesian = image_proc.cartesianImage();
-  // cv::imshow("polar", polar);
+  cv::Mat float_cartesian;
+  cartesian.convertTo(float_cartesian, CV_32FC1);
+  float_cartesian /= 255;
+  cv::imshow("float cartesian", float_cartesian);
+  cv::waitKey(1);
   cv::Mat curCartesian;
-  cv::copyMakeBorder(cartesian, curCartesian, 41, 41, 41, 41, BORDER_CONSTANT, 0);
+  cv::copyMakeBorder(float_cartesian, curCartesian, 41, 41, 41, 41, BORDER_CONSTANT, 0.0);
 
   // convert image to float values
-  cv::Mat floatImg;
-  curCartesian.convertTo(floatImg, CV_32FC1);
-  floatImg /= 255;
-  cv::imshow("cartesian", floatImg);
+  // cv::Mat floatImg;
+  // curCartesian.convertTo(floatImg, CV_32FC1);
+  // floatImg /= 255;
+  cv::imshow("cartesian", curCartesian);
   cv::waitKey(1);
 
   if (first) {
-    prevCartesian = floatImg;
+    prevCartesian = curCartesian;
     first = false;
   } else {
 
@@ -79,76 +83,50 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
     cv::Mat omp_collage = Mat(curCartesian.rows, curCartesian.cols, CV_32FC1);
     // TODO: change nested for-loops to function call:
     std::vector<std::vector<int>> sample_points = coarse_dm.getSamplePoints(curCartesian);
-    for (int k = 1; k < 7; k++) {
-      for (int l = 1; l < 16; l++) {
-        int pixelX = 41 * l;
-        int pixelY = 41 * k;
+    for (std::vector<int>& point : sample_points) {
+      int curX = point[0];
+      int curY = point[1];
+      // cout << "omp at point: " << curX << ", " << curY << "\n";
+      // cout << "img width : " << float_cartesian.cols << endl;
+      // cout << "img height: " << float_cartesian.rows << endl;
+      // cout << "collage width : " << omp_collage.cols << endl;
+      // cout << "collage height: " << omp_collage.rows << endl;
+      Eigen::VectorXf target_gamma = coarse_dm.getGamma(curX, curY, curCartesian);
+      Eigen::Matrix<float, Dynamic, Dynamic> dict_matrix = coarse_dm.dictionaryMatrix(curX, curY, curCartesian, prevCartesian);
 
-        // coarse depth map
-        Eigen::VectorXf target_gamma = coarse_dm.getGamma(pixelX, pixelY, floatImg);
-        // cout << "target: \n" << target_gamma << "\n";
-        Eigen::Matrix<float, Dynamic, Dynamic> dict_matrix = coarse_dm.dictionaryMatrix(pixelX, pixelY, floatImg, prevCartesian);
-        // Eigen::VectorXf error(target_gamma.size());
-        // Eigen::VectorXf xHat(dict_matrix.cols());
-        // xHat.fill(0);
-        // error.fill(0);
+      Eigen::VectorXf error;
+      Eigen::VectorXf xHat;
 
-        Eigen::VectorXf error;
-        Eigen::VectorXf xHat;
+      float omp_max = coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma, xHat, error);
 
-        // CURRENTLY NOT WORKING, FIX LATER
-        // coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma, xHat, error);
-        float omp_max = coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma, xHat, error);
+      // cout << omp_max << "\n";
 
-        cout << omp_max << "\n";
+      // ofstream myfile;
+      // myfile.open("OMP_from_listener.txt", std::ios::app);
+      // myfile << "xhat from omp: \n" << xHat << "\n";
+      // myfile.close();
 
-        // cout << "omp output: \n" << omp_output << "\n";
-        // cout << "omp error: \n" << omp_output.col(1) << "\n";
-        // int idx = 0;
-        // float omp_image_data[41][41];
-        // for (int i = 0; i < 41; i++) {
-        //   for (int j = 0; j < 41; j++) {
-        //     omp_image_data[i][j] = omp_result(idx);
-        //     idx++;
-        //   }
-        // }
-
-        // UNCOMMENT LATER
-        ofstream myfile;
-        myfile.open("OMP_from_listener.txt", std::ios::app);
-        myfile << "xhat from omp: \n" << xHat << "\n";
-        myfile.close();
-        // int idx = 0;
-        // for (int i = 0; i < 41; i++) {
-        //   for (int j = 0; j < 41; j++) {
-        //     int curX = pixelX - 20 + j;
-        //     int curY = pixelY - 20 + i;
-        //     // cout << curX << "\n";
-        //     // cout << curY << "\n";
-        //     // cout << "omp: " << omp_xhat(idy) << "\n";
-        //     omp_collage.at<float>(curY, curX) = xHat(idx);
-        //
-        //     idx++;
-        //   }
-        // }
-
-      }
+      omp_collage.at<float>(curY, curX) = omp_max;
     }
-    // cv::Mat omp_image = Mat(41, 41, CV_32FC1, &omp_image_data);
-    // cv::Mat dst;
-    // cv::resize(omp_image, dst, cv::Size(omp_image.cols * 10, omp_image.rows * 10));
+
+    // interpolate
+    for (std::vector<int>&point : sample_points) {
+      int curX = point[0];
+      int curY = point[1];
+      coarse_dm.interpolateOMPimage(curCartesian, curX, curY);
+    }
 
     // FOR SAVING OUTPUT IMAGES
-    // std::string filename = "src/henson_sonar/output/frame" + std::to_string(frame_num) + ".png";
-    // cv::Mat save_omp_collage;
-    // omp_collage.convertTo(save_omp_collage, CV_8UC1);
-    // save_omp_collage *= 255;
-    // cv::imwrite(filename, save_omp_collage);
-    // cv::imshow("OMP output", omp_collage);
-    // cv::waitKey(1);
+    std::string filename = "src/henson_sonar/output/frame" + std::to_string(frame_num) + ".png";
+    cv::Mat save_omp_collage;
+    omp_collage.convertTo(save_omp_collage, CV_8UC1);
+    save_omp_collage *= 255;
+    cv::imwrite(filename, save_omp_collage);
+    cv::imshow("OMP output", omp_collage);
+    cv::waitKey(1);
 
   }
-  prevCartesian = floatImg;
+  prevCartesian = curCartesian;
   frame_num++;
 }
 int main(int argc, char **argv)

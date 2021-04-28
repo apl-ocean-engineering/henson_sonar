@@ -1,2 +1,3 @@
 rosrun image_view image_view image:=/oculus/drawn_sonar
 
+catkin_make -DCMAKE_BUILD_TYPE=Release
