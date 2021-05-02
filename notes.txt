@@ -1,5 +1,42 @@
+2021/4/29
+meeting
+  - random points: HSFC number line vs random x and random y?
+  - for-each loop bug
+  - making custom histogram for interpolation
+    - number of histogram bins?
+  - testing with low sample points -> no good
+    - number of sample points?
+  - scaling xHat output to range of 0.0-1.0?
+
+to do
+  - optimization
+    - find which processes are taking the most time
+      - TODO: use chrono to measure time taken for:
+        - OMP estimation of each point?
+        - OMP estimation of all points
+        - gathering sample points
+        - interpolatiion of all points
+        https://www.geeksforgeeks.org/chrono-in-c/
+    - TODO: parallelize OMP estimation
+      - https://www.geeksforgeeks.org/multithreading-in-cpp/
+      - probably divide up the sample_points array into parts
+        for each thread to handle
+      - double check params and stuff (adding const when necessary)
+        to make sure nothing is getting changed / everything is concise
+  - TODO: make a DEBUG constant to enable / disable debug output
+  - interpolation
+    - TODO: make interpolation squares be drawn on a separate image
+      - how to parallelize this?
+  - TODO: improve sampling to be a proper PDF
+  - TODO:
+    -
+
+
 2021/4/27
 - interpolation
+  - opencv calcHist() just outputs a 1D array with the number of pixels in each bin
+    - NOTE: output doesn't contain the actual pixel values of each pixel in each bin
+    - need to figure out a different approach
 - clean up code
 - Q: looking at OMP coarse DM stuff, "only the displacement d(ξ) corresponding to
 the coefficient with the highest magnitude is kept for our further

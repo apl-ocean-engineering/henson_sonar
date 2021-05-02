@@ -11,15 +11,41 @@
 #include <opencv2/highgui.hpp>
 #include <fstream>
 #include <iostream>
+// #include <valarray>
+#include <thread>
 
 using namespace cv;
 using namespace std;
+
+const int OMP_THREADS = 10;
 
 bool first;
 cv::Mat prevCartesian;
 SonarImageProc image_proc;
 CoarseDM coarse_dm;
 int frame_num;
+
+void threadedOMP(std::vector<std::vector<int>> points, const cv::Mat& curCartesian, const cv::Mat& prevCartesian, cv::Mat& omp_collage) {
+  for (std::vector<int>& point : points) {
+    int curX = point[0];
+    int curY = point[1];
+    // cout << "omp at point: " << curX << ", " << curY << "\n";
+    // cout << "img width : " << float_cartesian.cols << endl;
+    // cout << "img height: " << float_cartesian.rows << endl;
+    // cout << "collage width : " << omp_collage.cols << endl;
+    // cout << "collage height: " << omp_collage.rows << endl;
+    Eigen::VectorXf target_gamma = coarse_dm.getGamma(curX, curY, curCartesian);
+    Eigen::Matrix<float, Dynamic, Dynamic> dict_matrix = coarse_dm.dictionaryMatrix(curX, curY, curCartesian, prevCartesian);
+
+    Eigen::VectorXf error;
+    Eigen::VectorXf xHat;
+
+    float omp_max = coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma, xHat, error);
+
+    omp_collage.at<float>(curY, curX) = omp_max;
+  }
+}
+
 
 void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
 {
@@ -78,42 +104,48 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
     // cout << "between 0.5 and 0.75: " << count2 << "\n";
     // cout << "between 0.75 and 1.0: " << count3 << "\n";
 
-
-    // get OMP output of points in the image
     cv::Mat omp_collage = Mat(curCartesian.rows, curCartesian.cols, CV_32FC1);
-    // TODO: change nested for-loops to function call:
+
     std::vector<std::vector<int>> sample_points = coarse_dm.getSamplePoints(curCartesian);
-    for (std::vector<int>& point : sample_points) {
-      int curX = point[0];
-      int curY = point[1];
-      // cout << "omp at point: " << curX << ", " << curY << "\n";
-      // cout << "img width : " << float_cartesian.cols << endl;
-      // cout << "img height: " << float_cartesian.rows << endl;
-      // cout << "collage width : " << omp_collage.cols << endl;
-      // cout << "collage height: " << omp_collage.rows << endl;
-      Eigen::VectorXf target_gamma = coarse_dm.getGamma(curX, curY, curCartesian);
-      Eigen::Matrix<float, Dynamic, Dynamic> dict_matrix = coarse_dm.dictionaryMatrix(curX, curY, curCartesian, prevCartesian);
 
-      Eigen::VectorXf error;
-      Eigen::VectorXf xHat;
+    // divvy up points for each OMP thread to work on
+    std::vector<std::vector<std::vector<int>>> thread_jobs;
+    int thread_job_size = (int)(sample_points.size() / OMP_THREADS);
+    int last_idx;
+    for (int i = 0; i < OMP_THREADS; i++) {
+      int begin_idx = i*thread_job_size;
+      int end_idx = ((i+1)*thread_job_size)-1;
+      std::vector<std::vector<int>> points;
+      for (int j = begin_idx; j <= end_idx; j++) {
+        points.push_back(sample_points[j]);
+      }
+      thread_jobs.push_back(points);
+      last_idx = end_idx;
+    }
+    // in case OMP_THREADS doesn't divide evenly into the number of sample points,
+    // just dump the rest into the last thread (potentially bad solution)
+    for (int i = last_idx+1; i < sample_points.size(); i++) {
+      thread_jobs[thread_jobs.size()-1].push_back(sample_points[i]);
+    }
 
-      float omp_max = coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma, xHat, error);
-
-      // cout << omp_max << "\n";
-
-      // ofstream myfile;
-      // myfile.open("OMP_from_listener.txt", std::ios::app);
-      // myfile << "xhat from omp: \n" << xHat << "\n";
-      // myfile.close();
-
-      omp_collage.at<float>(curY, curX) = omp_max;
+    // make a bunch of threads, each one working on it's own set of sample points
+    // std::vector<std::thread> threads;
+    std::thread threads[OMP_THREADS];
+    for (int i = 0; i < OMP_THREADS; i++) {
+      std::vector<std::vector<int>> thread_points = thread_jobs[i];
+      threads[i] = std::thread(threadedOMP, thread_points, std::ref(curCartesian), std::ref(prevCartesian), std::ref(omp_collage));
+    }
+    // wait for all threads to finish
+    for (int i = 0; i < OMP_THREADS; i++) {
+      threads[i].join();
     }
 
     // interpolate
+    cv::Mat interpolation_img = omp_collage.clone();
     for (std::vector<int>&point : sample_points) {
       int curX = point[0];
       int curY = point[1];
-      coarse_dm.interpolateOMPimage(curCartesian, curX, curY);
+      coarse_dm.interpolateOMPimage(omp_collage, interpolation_img, curX, curY);
     }
 
     // FOR SAVING OUTPUT IMAGES
@@ -122,8 +154,14 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
     omp_collage.convertTo(save_omp_collage, CV_8UC1);
     save_omp_collage *= 255;
     cv::imwrite(filename, save_omp_collage);
-    cv::imshow("OMP output", omp_collage);
-    cv::waitKey(1);
+
+    filename = "src/henson_sonar/output/interp" + std::to_string(frame_num) + ".png";
+    cv::Mat save_interpolation;
+    interpolation_img.convertTo(save_interpolation, CV_8UC1);
+    save_interpolation *= 255;
+    cv::imwrite(filename, save_interpolation);
+    // cv::imshow("OMP output", omp_collage);
+    // cv::waitKey(1);
 
   }
   prevCartesian = curCartesian;

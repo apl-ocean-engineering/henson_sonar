@@ -19,8 +19,9 @@ using namespace cv;
 using namespace std;
 
 const float OMP_ERROR_THRESH = 0.35;
-const int   OMP_ITERATION_MAX = 100;
-const int   OMP_NUM_SAMPLES = 2000;
+const int   OMP_ITERATION_MAX = 10;
+const int   OMP_NUM_SAMPLES = 15000;
+const float OMP_SAMPLE_THRESH = 0.50;
 
 CoarseDM::CoarseDM(){
 
@@ -29,7 +30,7 @@ CoarseDM::CoarseDM(){
 // Given image, coordinates
 // Outputs gamma vector centered at given coordinates of given image
 // Assumes 13 x 13 area, single channel grayscale image (type 8UC1)
-Eigen::VectorXf CoarseDM::getGamma(int x, int y, cv::Mat img) {
+Eigen::VectorXf CoarseDM::getGamma(int x, int y, const cv::Mat& img) {
    Eigen::VectorXf result(169);
    int i = 0;
    int yOffset = (13-1) / 2;
@@ -55,7 +56,7 @@ Eigen::VectorXf CoarseDM::getGamma(int x, int y, cv::Mat img) {
 // note: might need Eigen:: at start of next line
 // note: user must get target gamma via: getGamma(pixelX, pixelY, imgTarget);
 // Eigen::Matrix<int, 169, 1681> dictionaryMatrix(int pixelX, int pixelY, cv::Mat imgTarget, cv::Mat imgRef) {
-Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::dictionaryMatrix(int pixelX, int pixelY, cv::Mat imgTarget, cv::Mat imgRef) {
+Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::dictionaryMatrix(int pixelX, int pixelY, const cv::Mat& imgTarget, const cv::Mat& imgRef) {
    // Scalar intensity = img.at<uchar>(Point(x, y));
    // Eigen::MatrixXi result(1682, 169);
    Eigen::MatrixXf result(169, 1681);
@@ -144,7 +145,7 @@ float CoarseDM::getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, 
    ofstream myfile;
    myfile.open("OMP_loop_update.txt");
 
-   for (int& support : supports){
+   for (int& support : supports) {
      // cout << support << "\n";
      myfile << "set xHat[" << support << "] to " << xTemp(idx) << "\n";
       xHat(support) = xTemp(idx);
@@ -210,9 +211,6 @@ std::vector<std::vector<int>> CoarseDM::getSamplePoints(const cv::Mat &img) {
   std::vector<std::vector<int>> result;
 
     // PDF based on image intensity (?)
-    float intensity_thresh = 0.6;   // arbitrary; if too high, will not reach cap!
-    // int sample_cap = 100;          // arbitrary; paper says this should be 1/17th of
-                                    //            total pixels in image? unsure
     int num_samples = 0;
     // while (num_samples < sample_cap) {
     while (num_samples < OMP_NUM_SAMPLES) {
@@ -220,7 +218,7 @@ std::vector<std::vector<int>> CoarseDM::getSamplePoints(const cv::Mat &img) {
       int curX = rand() % img.cols;
       int curY = rand() % img.rows;
       float curVal = img.at<float>(curY, curX);
-      if (curVal > intensity_thresh) {
+      if (curVal > OMP_SAMPLE_THRESH) {
         std::vector<int> sample_point = {curX, curY};
         result.push_back(sample_point);
         num_samples++;
@@ -229,7 +227,7 @@ std::vector<std::vector<int>> CoarseDM::getSamplePoints(const cv::Mat &img) {
   return result;
 }
 
-void CoarseDM::interpolateOMPimage(cv::Mat& img, int x, int y) {
+void CoarseDM::interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int y) {
   // make histogram of 13 x 13 area around point
   // basic histogram code from:
   // https://docs.opencv.org/3.4/d8/dbc/tutorial_histogram_calculation.html
@@ -237,31 +235,56 @@ void CoarseDM::interpolateOMPimage(cv::Mat& img, int x, int y) {
   cv::Range cols(x-6, x+6);
   cv::Range rows(y-6, y+6);
   cv::Mat window = img(rows, cols);
+  double imgMin, imgMax;
+  cv::minMaxIdx(window, &imgMin, &imgMax);
   int histSize = 20; // number of bins: not sure how to configure
-  float binSize = 1.0 / histSize; // range of each bin
+  float binSize = (float)imgMax / histSize; // range of each bin
   float range[] = {0,1};
   const float* histRange = { range };
   bool uniform = true, accumulate = false;
-  cv::Mat hist;
-  calcHist(&window, 1, 0, Mat(), hist, 1, &histSize, &histRange, uniform, accumulate);
-  std::vector<int> histData(hist.rows*hist.cols);
-  histData = hist.data;
-  float windowVal;
 
-  int max_bin_index = distance(histData, histData + histData.size()); // not sure if this works
-  float binMin = binSize * max_bin_index;
-  float binMax = binSize * (max_bin_index+1);
-  float val = (binMin+binMax)/2;
+  // trying out my own method of making a histogram
+  std::vector<std::vector<float>> hist(histSize);
+
   for (int i = x-6; i < x+6; i++) {
     for (int j = y-6; j < y-6; j++) {
-      img.at<float>(j,i) = val;
+      float val = img.at<float>(j,i);
+      int hist_index = (int) (val / binSize);
+      hist[hist_index].push_back(val);
     }
   }
 
-  ofstream myfile;
-  myfile.open("OMP_sample_histogram.txt", std::ios::app);
-  myfile << "13x13 window histogram: \n" << hist << "\n";
-  myfile.close();
+  // find bin with most points, set all points in 13x13 window to avg value of bin
+  int max_bin_index = 0;
+  for (int i = 0; i < hist.size(); i++) {
+    if (hist[i].size() > hist[max_bin_index].size()) {
+      max_bin_index = i;
+    }
+  }
+
+  float binSum = 0;
+  for (int i = 0; i < hist[max_bin_index].size(); i++) {
+    binSum += hist[max_bin_index][i];
+  }
+  float avg = binSum/hist[max_bin_index].size();
+  for (int i = x-6; i < x+6; i++) {
+    for (int j = y-6; j < y-6; j++) {
+      out.at<float>(j,i) = avg;
+    }
+  }
+
+  // float binMin = max_bin_index * binSize;
+  // float binMax = (max_bin_index+1) * binSize;
+
+  // ofstream myfile;
+  // myfile.open("OMP_interpolation_debug.txt", std::ios::app);
+  // // myfile << "13x13 window histogram: \n" << hist << "\n";
+  // myfile << "max bin: intensity range of " << binMin << " to " << binMax << "\n";
+  // myfile << "with " << hist[max_bin_index].size() << " pixels\n";
+  // myfile << "and average value of " << avg << "\n";
+  // myfile.close();
+
+
   // int hist_w = 512, hist_h = 400;
   // int bin_w = cv::cvRound( (double) hist_w/histSize);
   // cv::Mat histImg(hist_h, hist_w, CV_8UC3, Scalar(0,0,0));

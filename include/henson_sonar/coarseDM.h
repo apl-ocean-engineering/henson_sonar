@@ -14,14 +14,11 @@ public:
   CoarseDM();
   // Eigen::Matrix<int, 1681, 169> dictionaryMatrix(int pixelX, int pixelY, cv::Mat imgTarget, cv::Mat imgRef);
 
-  Eigen::VectorXf getGamma(int x, int y, cv::Mat img);
-  Eigen::Matrix<float, Dynamic, Dynamic> dictionaryMatrix(int pixelX, int pixelY, cv::Mat imgTarget, cv::Mat imgRef);
-  // Eigen::Matrix<int, 2, 169> getTargetErrorOMP(Matrix<int, 1681, 169> dictA, VectorXi targetX);
-  // Eigen::Matrix<float, Dynamic, Dynamic> getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, const VectorXf& targetX);
-  // void getTargetErrorOMP(Matrix<float, Dynamic, Dynamic>& dictA, VectorXf& targetY, VectorXf& xHatOut, VectorXf& errorOut);
+  Eigen::VectorXf getGamma(int x, int y, const cv::Mat& img);
+  Eigen::Matrix<float, Dynamic, Dynamic> dictionaryMatrix(int pixelX, int pixelY, const cv::Mat& imgTarget, const cv::Mat& imgRef);
   float getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, const VectorXf& targetY, VectorXf& xHatOut, VectorXf& errorOut);
   std::vector<std::vector<int>> getSamplePoints(const cv::Mat& img);
-  void interpolateOMPimage(cv::Mat& img, int x, int y);
+  void interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int y);
 private:
 
 
