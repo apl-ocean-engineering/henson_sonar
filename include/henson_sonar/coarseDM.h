@@ -18,7 +18,8 @@ public:
   Eigen::Matrix<float, Dynamic, Dynamic> dictionaryMatrix(int pixelX, int pixelY, const cv::Mat& imgTarget, const cv::Mat& imgRef);
   float getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, const VectorXf& targetY, VectorXf& xHatOut, VectorXf& errorOut);
   std::vector<std::vector<int>> getSamplePoints(const cv::Mat& img);
-  void interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int y);
+  // void interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int y);
+  float interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int y);
 private:
 
 

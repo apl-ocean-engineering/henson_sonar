@@ -91,7 +91,7 @@ float CoarseDM::getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, 
 
   // cout << dictA << "\n";
 
-  ROS_INFO("PROCESSING NEW IMAGE");
+  // ROS_INFO("PROCESSING NEW IMAGE");
 
   Eigen::VectorXf xHat(dictA.cols());
   xHat.fill(0);
@@ -123,7 +123,8 @@ float CoarseDM::getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, 
        break;
     }
 
-   ROS_INFO_STREAM("Selected index " << maxIndex << " with value of " << maxValue);
+   // ROS_INFO_STREAM("Selected index " << maxIndex << " with value of " << maxValue);
+
    //Add support
    supports.push_back(maxIndex);
 
@@ -164,23 +165,27 @@ float CoarseDM::getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, 
    // xHatOut = xHat;
    // errorOut = error;
    if (errorNorm < OMP_ERROR_THRESH){
-      ROS_INFO_STREAM("Found solution with error norm of " << errorNorm << " which is below the threshold of " << OMP_ERROR_THRESH);
+      // ROS_INFO_STREAM("Found solution with error norm of " << errorNorm << " which is below the threshold of " << OMP_ERROR_THRESH);
+
+
       xHatOut = xHat;
       errorOut = error;
-      ofstream myfile;
-      myfile.open("OMP_break_loop.txt");
-      myfile << "break loop xHat: \n" << xHat << "\n";
-      myfile << "break loop xHatOut: \n" << xHatOut << "\n";
-      myfile.close();
+      // ofstream myfile;
+      // myfile.open("OMP_break_loop.txt");
+      // myfile << "break loop xHat: \n" << xHat << "\n";
+      // myfile << "break loop xHatOut: \n" << xHatOut << "\n";
+      // myfile.close();
 
       break;
    }
    else if (iteration > OMP_ITERATION_MAX){
-      ROS_WARN_STREAM("Maximium iterations of " << OMP_ITERATION_MAX << " exceeded. Breaking");
-      ofstream myfile;
-      myfile.open("OMP_break_loop.txt");
-      myfile << "final xHat: \n" << xHat << "\n";
-      myfile.close();
+      // ROS_WARN_STREAM("Maximium iterations of " << OMP_ITERATION_MAX << " exceeded. Breaking");
+
+
+      // ofstream myfile;
+      // myfile.open("OMP_break_loop.txt");
+      // myfile.close();
+      // myfile << "final xHat: \n" << xHat << "\n";
       xHatOut = xHat;
       errorOut = error;
       break;
@@ -227,7 +232,8 @@ std::vector<std::vector<int>> CoarseDM::getSamplePoints(const cv::Mat &img) {
   return result;
 }
 
-void CoarseDM::interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int y) {
+// void CoarseDM::interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int y) {
+float CoarseDM::interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int y) {
   // make histogram of 13 x 13 area around point
   // basic histogram code from:
   // https://docs.opencv.org/3.4/d8/dbc/tutorial_histogram_calculation.html
@@ -236,21 +242,48 @@ void CoarseDM::interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int 
   cv::Range rows(y-6, y+6);
   cv::Mat window = img(rows, cols);
   double imgMin, imgMax;
-  cv::minMaxIdx(window, &imgMin, &imgMax);
+  cv::minMaxLoc(window, &imgMin, &imgMax);
   int histSize = 20; // number of bins: not sure how to configure
-  float binSize = (float)imgMax / histSize; // range of each bin
-  float range[] = {0,1};
-  const float* histRange = { range };
-  bool uniform = true, accumulate = false;
+  float imageMax = (float)imgMax;
+  float imageMin = (float)imgMin;
+  float binWidth = imageMax / histSize; // range of each bin
+
+  // cout << "min: " << imageMin << "\n";
+  // cout << "max: " << imageMax << "\n";
+  // cout << "bin width: " << binWidth << "\n";
+  // float range[] = {0,1};
+  // const float* histRange = { range };
+  // bool uniform = true, accumulate = false;
 
   // trying out my own method of making a histogram
   std::vector<std::vector<float>> hist(histSize);
 
+  ofstream myfile;
+  myfile.open("OMP_interpolation_debug.txt", std::ios::app);
+  myfile << "RAW IMAGE DATA: \n";
   for (int i = x-6; i < x+6; i++) {
-    for (int j = y-6; j < y-6; j++) {
+    for (int j = y-6; j < y+6; j++) {
+
+
       float val = img.at<float>(j,i);
-      int hist_index = (int) (val / binSize);
+
+      // const float * rowPtr = img.ptr<float>(i);
+      // float val = rowPtr[j];
+      int hist_index = (int) (val / binWidth);
+      // when we reach the max value hist_index will = histSize,
+      // which causes a segfault
+      if (hist_index >= histSize) hist_index = histSize-1;
+
+      // cout << "at: " << i << ", " << j << "\n";
+      // cout << "val: " << val << "\n";
+      // cout << "go into hist bin " << hist_index << "\n";
+
+      // myfile << "go into hist bin " << hist_index << "\n";
+      // myfile << "at pixel (" << i << "," << j << ")\n";
+      // myfile << "val: " << val << "\n";
+
       hist[hist_index].push_back(val);
+
     }
   }
 
@@ -267,24 +300,44 @@ void CoarseDM::interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int 
     binSum += hist[max_bin_index][i];
   }
   float avg = binSum/hist[max_bin_index].size();
+  // avg = 1.0;
+
+  float binMin = max_bin_index * binWidth;
+  float binMax = (max_bin_index+1) * binWidth;
+
+
+  // myfile.open("OMP_interpolation_debug.txt");
+
+  myfile << "HISTOGRAM SETUP:\n";
+  myfile << "number of bins: " << histSize << "\n";
+  myfile << "bin width: " << binWidth << "\n";
+  myfile << "HISTOGRAM DATA:\n";
+  myfile << "min bin index: " << max_bin_index << "\n";
+  myfile << "max bin index: " << max_bin_index << "\n";
+  myfile << "min value: " << imageMin << "\n";
+  myfile << "max value: " << imageMax << "\n";
+  // myfile << "RAW DATA: \n";
+  // for (int i = 0; i < hist.size(); i++) {
+  //   for (int j = 0; j < hist[i].size(); j++) {
+  //     myfile << hist[i][j] << "\n";
+  //   }
+  // }
+
+  // // myfile << "13x13 window histogram: \n" << hist << "\n";
+  myfile << "max bin: intensity range of " << binMin << " to " << binMax << "\n";
+  myfile << "with " << hist[max_bin_index].size() << " pixels\n";
+  myfile << "and average value of " << avg << "\n";
+  myfile.close();
+
+  avg = 1.0;
+
   for (int i = x-6; i < x+6; i++) {
-    for (int j = y-6; j < y-6; j++) {
+    for (int j = y-6; j < y+6; j++) {
       out.at<float>(j,i) = avg;
     }
   }
 
-  // float binMin = max_bin_index * binSize;
-  // float binMax = (max_bin_index+1) * binSize;
-
-  // ofstream myfile;
-  // myfile.open("OMP_interpolation_debug.txt", std::ios::app);
-  // // myfile << "13x13 window histogram: \n" << hist << "\n";
-  // myfile << "max bin: intensity range of " << binMin << " to " << binMax << "\n";
-  // myfile << "with " << hist[max_bin_index].size() << " pixels\n";
-  // myfile << "and average value of " << avg << "\n";
-  // myfile.close();
-
-
+  return avg;
   // int hist_w = 512, hist_h = 400;
   // int bin_w = cv::cvRound( (double) hist_w/histSize);
   // cv::Mat histImg(hist_h, hist_w, CV_8UC3, Scalar(0,0,0));

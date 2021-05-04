@@ -1,3 +1,26 @@
+2021/5/4
+- TODO: new sample point selection
+  - Probability Density Function, from wikipedia:
+    a probability density function (PDF), or density of a continuous random variable,
+    is a function whose value at any given sample (or point) in the sample space
+    can be interpreted as providing a relative likelihood that the value of
+    the random variable would equal that sample
+  - So basically the higher the intensity, the more likely it is for a random point
+    to equal that intensity?
+- DONE: confirm that the interpolation function is working / able to draw
+  - think there's an issue with sample point selection
+    - currently just generating random coordinates and saving them if the intensity
+      is above a defined threshold
+    - paper: "the ref image intensity is used as a probability density function"
+      - this means that the intensities of the pixel values are essentially made into
+        a histogram / bell curve type of thing
+    - paper: generating sample points stops when |X_sample| = (1/17) |X|
+      - thought that this meant the NUMBER of sample points = 1/17 the number of pixels in the image
+      - it might actually mean that the TOTAL INTENSITY of the sample points = 1/17 total intensity of image
+
+2021/5/2
+- turn interpolation image from clone -> make entirely new image
+
 2021/4/29
 meeting
   - random points: HSFC number line vs random x and random y?
