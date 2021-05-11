@@ -89,7 +89,14 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
       while (img_queue.size() != 0) {
         curCartesian = img_queue.back();
         img_queue.pop_back();
-        // cv::imshow("processing image", curCartesian);
+
+        // save original image
+        std::string filename = "src/henson_sonar/output/frame" + std::to_string(save_frame_num) + ".png";
+        cv::Mat save_cur_cartesian;
+        curCartesian.convertTo(save_cur_cartesian, CV_8UC1);
+        save_cur_cartesian *= 255;
+        cv::imwrite(filename, save_cur_cartesian);
+
         if (first) {
           prevCartesian = curCartesian;
           first = false;
@@ -156,7 +163,7 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
           cout << "OMP finished in: " << elapsed_time.count() << "s\n";
 
           // save OMP collage image
-          std::string filename = "src/henson_sonar/output/omp" + std::to_string(save_frame_num) + ".png";
+          filename = "src/henson_sonar/output/omp" + std::to_string(save_frame_num) + ".png";
           cv::Mat save_omp_collage;
           omp_collage.convertTo(save_omp_collage, CV_8UC1);
           save_omp_collage *= 255;
