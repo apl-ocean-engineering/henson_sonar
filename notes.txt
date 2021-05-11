@@ -1,5 +1,171 @@
+2021/5/10
+Qs:
+  - interpolation
+    - what is expected range of OMP?
+      - how to map to value that can be divided by 13 to get x and y?
+    - what should I do about large values?
+    - how to map interpolation average to colors?
+    - interpolation image = integers or floats?
+      - issue of forward vs backward DM comparison threshold = 2 pixels
+  - forward vs backward DM
+    - use same set of sample points from forward DM?
+    - go over every point in forward DM when comparing to backward DM,
+      or just sample points?
+
+
+- PLAN:
+  - look into what is happening wrt images containing artifacts/errors
+  - get function to map a value within one range to another range
+  - figure out range of OMP output (no idea what's going on there)
+  - figure out how to map interpolation avg value to something that can be divided by 13
+    - current values are max 0.5, and paper expects range of [-5,5] for x and y
+  - determine how paper is using x and y value to determine interpolation color
+  - verify that interpolation image should be made of integer values
+    - since comparison threshold is 2 pixels, makes this confusing
+      - could easily be either floats or ints
+  - create new 3-channel interpolation images in ROS callback
+  - look up how to set point to RGB color / however the paper is doing color
+  - run and see how it looks
+  - get displacement map generation packaged up into a function within coarseDM.cpp itself
+  - in callback, just create DM for forward and back
+  - new function in coarseDM to compare forward in back, return fixed image
+  - move on to fine depth map: hilbert sfc and permutation table
+
+
+- TODO: colorized interpolation
+  - y = omp value / 13
+  - x = omp value % 13
+  - not really sure how this will work; only seeing max values around ~0.5
+    - maybe this is scaled to 0.0 - 1.0?
+      - paper uses range of -5 - 5 for x and y (why?)
+        maybe just multiply values by 5 -> map to range of 0-255 for color image?
+          - assuming 0-255 because this is the coarse depth map
+  - paper:
+     0,  0 = white
+     5,  5 = orange-ish brown?
+    -5,  5 = green
+     5, -5 = purple
+    -5, -5 = blue
+     likely not scaling individual RGB values on x and y
+  - tried multiplying by 255 (float -> int), then divide / mod by 13
+    - values a lot bigger than 5...
+
+- just setting massive OMP values to 0
+  - better to have less data than mess up everything
+  - NOTE: massive values still showing up in interpolation? doesnt make any sense
+- ISSUE: very negative values still coming out of OMP, messing up interpolation
+  - causes bins to be extremely large:
+    current point: 724, 226
+    min: -1.72557e+35
+    max: 0.676281
+    bin width: 8.62786e+33
+- ISSUE: errors in image saving seems to be an issue, no idea why its so inconsistent
+- TODO: forward vs backward coarse DM:
+  - TODO: figure out whether this is looking at every pixel in the DM image, or just sample points?
+    - for backward DM should i generate new set of sample points, or just use the set used for the forward DM?
+  - swap the images and generate another DM
+    - NOTE: operating under assumption that backwards DM should be negative of forwards DM
+      - TODO: verify this assumption
+    - comparison:
+      - "forward DM says that this pixel has shifted 2 pixels to the left"
+      - then check at the location 2 pixels to the left within the backwards DM,
+        and make sure it says that "this pixel has shifted 2 pixels to the right"?
+      - if these statements are within 2 pixels of each other, the forward DM esitmate is kept
+        otherwise forward DM is discarded
+    - ROS node callback needs to be cleaned up a LOT
+    - TODO: make function to take forwards + backwards DM and do comparison
+- TODO: hilbert sfc algorithm for rectangular image (read paper)
+- TODO: fine displacement
+  - after we have this refined set of displacements, we run it through an adaptive filter
+  - goal: to ensure that convolution kernel used in this filter changes as slowly as possible
+    - called a "slow evolution"
+  - to do this, we try to process coarse DM values such that the change between each pixel
+    is minimized
+    - create a "permutation table": a fancy / organized histogram
+    - the bins within the table are ordered to minimize differences between bins
+      - AKA the values within each bin are ordered this time around
+      - NOTE: paper says there are "M" bins in total for this histogram
+        - M referenced previously as search size for the OMP dictionary matrix
+        - M = 41^2 = 1681 (thats a LOT of bins)
+        - still confused on how many bins the interpolation function should have...
+    - algorithm for permutation table:
+      - scan DM along hilbert sfc pixel by pixel
+      - each pixel added into bin based on displacement value
+        - (save its coordinates / position)
+      - after scan, each bin now has positions of all pixels with same displacement
+        - seems like each displacement value has its own bin...
+          - NOTE: maybe this is how the interpolation histogram should be done???
+      - each bin is re-ordered according to position along hilbert SFC
+      - each bin is read from smallest to greatest -> slowest possible kernel evolution
+    - filter is a Recursive Least Squares adaptive filter
+    - left off at bottom left after fig 5
+- NOTE: desired range of coordinates
+  - img height: 338 with 41 px border -> actually 256
+    img width : 784 with 41 px border -> actually 702
+  - y: [41,297]
+  - x: [41,743]
+- TODO: bad image encoding is definitely messing up interpolation
+  - compare frame12 and interp12 in queue/save_error: shifted "duplicate" put on to frame12
+    is reflected in interpolation output
+  - seems like weird errors are propagating throughout subsequent images?
+- NOTE: since this is a coarse displacement map, shouldn't the interpolation image
+  be all int values?
+    - main issue: OMP output = float with unknown range
+      - if this was guaranteed to be limited to 0-1.0, could easily translate to 0-255
+
+
+
+
+
+
+2021/5/9
+- figured out crashing issue
+  - there are negative values in the OMP image
+  - when making histogram in the interpolation function, have this line:
+    int hist_index = (int) (val / binWidth)
+    where val = value at current pixel
+  - results in negative hist_index value -> segfault when try to access index of histogram (array of bins)
+  - TODO:
+    - figure out what to do with these negative values / how to arrange histogram array
+    - logically, smallest index histogram -> most negative value
+    - ISSUE: opencv's MinMaxLoc does not work for negative values!
+      - need to go through and pick out min / max manually?
+    - have some ideas to make it scale with number of bins...
+      worst case just hardcode it for 20 bins
+  - ISSUE: still getting NaN values from OMP still... causing more segfaults
+    - TODO: if output of OMP is NaN just set it to zero
+    - not sure whether massive big / small values = NaN? What is causing this??
+    - need to look up how to check for NaN
+
+
+
+2021/5/6
+- guarantee image queue
+  - idea: just save the entire bag to a folder of images
+    - run it once, then change main to just loop through the folder
+    - doesn't translate well to ROS...
+  - idea: make vector / queue of images that must be filled to some size
+          before doing the rest of the callback function
+- NOTE: 213 messages in the bag file currently being used
+  - try skipping the first 100 messages to get to point with movement
+- DONE: keeps crashing after processing 3 images
+  - specifically right after OMP is finished. output:
+    sample points elapsed time: 0.419463s
+    OMP thread jobs made in: 0.00185479s
+    OMP finished in: 311.471s
+    interpolation finished in: 0.528147s
+    sample points elapsed time: 0.443377s
+    OMP thread jobs made in: 0.00185737s
+    OMP finished in: 319.736s
+    interpolation finished in: 0.573632s
+    sample points elapsed time: 0.429242s
+    OMP thread jobs made in: 0.00178101s
+    OMP finished in: 318.614s
+    Segmentation fault (core dumped)
+
+
 2021/5/4
-- TODO: new sample point selection
+- DONE: new sample point selection
   - Probability Density Function, from wikipedia:
     a probability density function (PDF), or density of a continuous random variable,
     is a function whose value at any given sample (or point) in the sample space
@@ -34,13 +200,13 @@ meeting
 to do
   - optimization
     - find which processes are taking the most time
-      - TODO: use chrono to measure time taken for:
+      - DONE: use chrono to measure time taken for:
         - OMP estimation of each point?
         - OMP estimation of all points
         - gathering sample points
         - interpolatiion of all points
         https://www.geeksforgeeks.org/chrono-in-c/
-    - TODO: parallelize OMP estimation
+    - DONE: parallelize OMP estimation
       - https://www.geeksforgeeks.org/multithreading-in-cpp/
       - probably divide up the sample_points array into parts
         for each thread to handle
@@ -50,10 +216,7 @@ to do
   - interpolation
     - TODO: make interpolation squares be drawn on a separate image
       - how to parallelize this?
-  - TODO: improve sampling to be a proper PDF
-  - TODO:
-    -
-
+  - DONE: improve sampling to be a proper PDF
 
 2021/4/27
 - interpolation
