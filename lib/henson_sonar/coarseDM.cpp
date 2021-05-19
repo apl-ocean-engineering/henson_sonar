@@ -12,6 +12,7 @@
 #include "ros/ros.h"
 #include <fstream>
 #include <algorithm>
+#include <stdint.h>
 
 #include <ros/console.h>
 
@@ -57,7 +58,7 @@ Eigen::VectorXf CoarseDM::getGamma(int x, int y, const cv::Mat& img) {
 // note: might need Eigen:: at start of next line
 // note: user must get target gamma via: getGamma(pixelX, pixelY, imgTarget);
 // Eigen::Matrix<int, 169, 1681> dictionaryMatrix(int pixelX, int pixelY, cv::Mat imgTarget, cv::Mat imgRef) {
-Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::dictionaryMatrix(int pixelX, int pixelY, const cv::Mat& imgTarget, const cv::Mat& imgRef) {
+Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::dictionaryMatrix(int pixelX, int pixelY, const cv::Mat& imgRef) {
    // Scalar intensity = img.at<uchar>(Point(x, y));
    // Eigen::MatrixXi result(1682, 169);
    Eigen::MatrixXf result(169, 1681);
@@ -84,7 +85,7 @@ Eigen::Matrix<float, Dynamic, Dynamic> CoarseDM::dictionaryMatrix(int pixelX, in
 // Outputs gamma vector x, error vector e (stacked into a 2 x 169 matrix)
 // such that y - Ax = e, via Orthogonal Matching Pursuit
 // void getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, const VectorXf& targetY, VectorXf& xHatOut, VectorXf& errorOut) {
-float CoarseDM::getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, const VectorXf& targetY, VectorXf& xHatOut, VectorXf& errorOut) {
+int CoarseDM::getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, const VectorXf& targetY, VectorXf& xHatOut, VectorXf& errorOut) {
   // xHatOut.resize(dictA.cols());
   // errorOut.resize(dictA.rows());
   // xHatOut.fill(0);
@@ -105,7 +106,7 @@ float CoarseDM::getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, 
 
   int iteration = 0;
 
-   std::vector<int> supports;
+  std::vector<int> supports;
   float errorNorm = error.norm();
    while (true){
    float maxValue = 0;
@@ -202,22 +203,39 @@ float CoarseDM::getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, 
   // result.col(0) = xHat;
   // result.col(1).head(dictA.rows()) = error;
 
-  // ofstream myfile;
-  // myfile.open("OMP_final_return.txt", std::ios::app);
+  ofstream myfile;
+  myfile.open("OMP_final_return.txt", std::ios::app);
   //
   //
   // myfile << "xHat: \n" << xHat << "\n error: \n" << error << "\n";
   // myfile << "xHat OUT: \n" << xHatOut << "\n error OUT: \n" << errorOut << "\n";
-  // myfile.close();
 
-  float result = max(xHat.maxCoeff(), abs(xHat.minCoeff()));
-  if (result > 100) result = 0;
-  if (result < -100) result = 0;
 
-  // return max(xHat.maxCoeff(), abs(xHat.minCoeff()));
-  return result;
+  // float result = max(xHat.maxCoeff(), abs(xHat.minCoeff()));
+  int max_idx = 0;
+  float max_val = 0;
+  for (int i = 0; i < xHat.size(); i++) {
+    float curVal = xHat(i);
+    // filter out bad results
+    if (curVal > 100) xHat(i) = 0;
+    if (curVal < -100) xHat(i) = 0;
+
+    curVal = xHat(i);
+    if (curVal > max_val) {
+      max_idx = i;
+      max_val = xHat(i);
+    }
+  }
+
+  myfile << "return value: " << max_idx << endl;
+  myfile.close();
+  return max_idx;
 }
 
+// input:
+//  img   OMP image (32SC1)
+// output:
+//  array of sample points (each point: [x,y])
 std::vector<std::vector<int>> CoarseDM::getSamplePoints(const cv::Mat &img) {
   std::vector<std::vector<int>> result;
 
@@ -231,7 +249,7 @@ std::vector<std::vector<int>> CoarseDM::getSamplePoints(const cv::Mat &img) {
       // TODO: determine whether to generate x and y OR use hilbert space filling curve
       int curX = (rand() % (img.cols-82))+41;
       int curY = (rand() % (img.rows-82))+41;
-      float curVal = img.at<float>(curY, curX);
+      int curVal = img.at<int>(curY, curX);
       // if (curVal > OMP_SAMPLE_THRESH) {
       //   std::vector<int> sample_point = {curX, curY};
       //   result.push_back(sample_point);
@@ -239,7 +257,8 @@ std::vector<std::vector<int>> CoarseDM::getSamplePoints(const cv::Mat &img) {
       // }
 
       // the jankiest pdf ever
-      bool save = false;
+      // (currently disabled)
+      bool save = true;
       // float mod_div = (int) curVal * 4;
       // if (mod_div == 0) mod_div = mod_div + 1;
       // int mod = (int) 12 / mod_div;
@@ -247,9 +266,10 @@ std::vector<std::vector<int>> CoarseDM::getSamplePoints(const cv::Mat &img) {
       // if (random < 3) {
       //   save = true;
       // }
-      int random = rand() % 100;
-      // if (random < (int)((curVal * 100)-1)) save = true;
-      if (random < (int)(pow(100,curVal)-1)) save = true;
+
+
+      // int random = rand() % 100;
+      // if (random < (int)(pow(100,curVal)-1)) save = true;
 
       if (save) {
         std::vector<int> sample_point = {curX, curY};
@@ -277,78 +297,71 @@ std::vector<std::vector<int>> CoarseDM::getSamplePoints(const cv::Mat &img) {
 }
 
 // void CoarseDM::interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int y) {
-float CoarseDM::interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int y) {
+// input:
+//  img   reference OMP image (32SC1)
+//  out   interpolated image  (32SC1)
+//  x     x coordinate of point of interest
+//  y     y coordinate of point of interest
+int CoarseDM::interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int y) {
   // make histogram of 13 x 13 area around point
-  // basic histogram code from:
-  // https://docs.opencv.org/3.4/d8/dbc/tutorial_histogram_calculation.html
-  // get 13x13 window centered at x,y
-  // cv::Range cols(x-6, x+6);
-  // cv::Range rows(y-6, y+6);
-  // cv::Mat window = img(rows, cols);
-  // cout << "window width : " << window.cols << endl;
-  // cout << "window height: " << window.rows << endl;
-  float imgMin = 0.0;
-  float imgMax = 0.0;
-  // float imgMax = float.MAX
-  // cv::minMaxLoc(window, &imgMin, &imgMax);
-  // openCV's minMaxLoc doesn't work with negative numbers -> look manually
-  for (int i = x-6; i <= x+6; i++) {
-    for (int j = y-6; j <= y+6; j++) {
-      float val = img.at<float>(j,i);
-      if (val < imgMin) imgMin = val;
-      if (val > imgMax) imgMax = val;
-    }
-  }
-  // confine imgMin and imgMax within semi-acceptable range
-  // issue due to OMP collage having extremely large numbers
-  // (1.5 and -1.5 are completely arbitrary!)
-  // if (imgMax > 100) imgMax = 1.5;
-  // if (imgMin < -100) imgMin = -1.5;
-  //
+  cv::Range cols(x-6, x+6);
+  cv::Range rows(y-6, y+6);
+  cv::Mat window = img(rows, cols);
+  double min, max;
+  cv::minMaxLoc(window, &min, &max);
+  int imgMin = (int)min;
+  int imgMax = (int)max;
+  if (imgMin < 0) imgMin = 0;
+  if (imgMax > 1681) imgMax = 1681;
+  // replace with minMaxLoc?
+  // for (int i = x-6; i <= x+6; i++) {
+  //   for (int j = y-6; j <= y+6; j++) {
+  //     int val = img.at<int>(j,i);
+  //     if (val < imgMin) imgMin = val;
+  //     if (val > imgMax) imgMax = val;
+  //   }
+  // }
 
-  int histSize = 20; // number of bins: not sure how to configure
-  // float imageMax = (float)imgMax;
-  // float imageMin = (float)imgMin;
-  float binWidth = (imgMax+abs(imgMin)) / histSize; // range of each bin
-  int bins_below_zero = (int) (abs(imgMin) / binWidth);
+  int histSize = 40; // number of bins: not sure how to configure
+  int binWidth = (int) imgMax / histSize;
+
+  // old histogram stuff (allows negative values):
+  // float binWidth = (imgMax+abs(imgMin)) / histSize; // range of each bin
+  // int bins_below_zero = (int) (abs(imgMin) / binWidth);
 
   cout << "min: " << imgMin << "\n";
   cout << "max: " << imgMax << "\n";
   cout << "bin width: " << binWidth << "\n";
-  // float range[] = {0,1};
-  // const float* histRange = { range };
-  // bool uniform = true, accumulate = false;
 
-  // trying out my own method of making a histogram
-  std::vector<std::vector<float>> hist(histSize);
+  std::vector<std::vector<int>> hist(histSize);
 
-  // ofstream myfile;
-  // myfile.open("OMP_interpolation_debug.txt", std::ios::app);
+  ofstream myfile;
+  myfile.open("OMP_interpolation_debug.txt", std::ios::app);
   // myfile << "RAW IMAGE DATA: \n";
+  int val, hist_index;
   for (int i = x-6; i <= x+6; i++) {
     for (int j = y-6; j <= y+6; j++) {
 
-      float val = img.at<float>(j,i);
+      val = img.at<int>(j,i);
 
-      int hist_index = (int) (val / binWidth);
-      // correct for bins below zero
-      if (val >= 0) hist_index += bins_below_zero;
-      if (val < 0)  hist_index += (bins_below_zero - 1);
+      hist_index = (int) (val / binWidth);
+      // OLD: correct for bins below zero
+      // if (val >= 0) hist_index += bins_below_zero;
+      // if (val < 0)  hist_index += (bins_below_zero - 1);
 
       // catch min, max, and NaN values
       if (hist_index >= histSize) hist_index = histSize-1;
-      if (hist_index <= 0) hist_index = 0;
-
-      // cout << "at: " << i << ", " << j << "\n";
-      // cout << "val: " << val << "\n";
-      // cout << "go into hist bin " << hist_index << "\n";
+      if (hist_index < 0) hist_index = 0;
 
       // myfile << "go into hist bin " << hist_index << "\n";
-      // myfile << "at pixel (" << i << "," << j << ")\n";
-      // myfile << "val: " << val << "\n";
+
+      if (val > 2000) {
+        myfile << "val: " << val << "\n";
+        myfile << "at pixel (" << i << "," << j << ")\n";
+      }
+
 
       hist[hist_index].push_back(val);
-
     }
   }
 
@@ -359,55 +372,24 @@ float CoarseDM::interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int
       max_bin_index = i;
     }
   }
-  // test
 
-  float binSum = 0;
+  int binSum = 0;
   for (int i = 0; i < hist[max_bin_index].size(); i++) {
     binSum += hist[max_bin_index][i];
   }
-  // TODO: check proper value in binSum
-  cout << "max bin sum = " << binSum << endl;
-  float avg = binSum/hist[max_bin_index].size();
-
-  float binMin = max_bin_index * binWidth;
-  float binMax = (max_bin_index+1) * binWidth;
-
-  // myfile.open("OMP_interpolation_debug.txt");
-
-  // myfile << "HISTOGRAM SETUP:\n";
-  // myfile << "number of bins: " << histSize << "\n";
-  // myfile << "bin width: " << binWidth << "\n";
-  // myfile << "HISTOGRAM DATA:\n";
-  // myfile << "min bin index: " << max_bin_index << "\n";
-  // myfile << "max bin index: " << max_bin_index << "\n";
-  // myfile << "min value: " << imgMin << "\n";
-  // myfile << "max value: " << imgMax << "\n";
-  // // myfile << "RAW DATA: \n";
-  // // for (int i = 0; i < hist.size(); i++) {
-  // //   for (int j = 0; j < hist[i].size(); j++) {
-  // //     myfile << hist[i][j] << "\n";
-  // //   }
-  // // }
-  //
-  // // // myfile << "13x13 window histogram: \n" << hist << "\n";
-  // myfile << "max bin: intensity range of " << binMin << " to " << binMax << "\n";
-  // myfile << "with " << hist[max_bin_index].size() << " pixels\n";
-  // myfile << "and average value of " << avg << "\n";
-  // myfile.close();
+  // cout << "max bin sum = " << binSum << endl;
+  int avg = (int)(binSum/hist[max_bin_index].size());
 
   for (int i = x-6; i <= x+6; i++) {
     for (int j = y-6; j <= y+6; j++) {
       // cout << "set point " << i << ", " << j << " to " << avg << endl;
-      out.at<float>(j,i) = avg;
+      out.at<int>(j,i) = avg;
     }
   }
 
-  // mutiply avg by 169 to make it work for x and y?
+  int test_x = avg % 13;
 
-  int test_x = (int) (avg * 169);
-  test_x = test_x % 13;
-  int test_y = (int) (avg * 169);
-  test_y = (int) (test_y / 13);
+  int test_y = (int) (test_y / 13);
   cout << "test x: " << test_x << endl;
   cout << "test y: " << test_y << endl;
 

@@ -1,3 +1,13 @@
+2021/5/18
+- fix coarseDM stuff
+  - DONE: verify that OMP is returning correct values
+  - update interpolation function
+    - 2 channel images in opencv?
+    - ISSUE: OMP output has range of 0-1680
+      - have been using 8UC1 images -> 8bit unsigned int has max of 255
+        - TODO:
+
+
 2021/5/10
 Qs:
   - interpolation

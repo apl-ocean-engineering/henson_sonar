@@ -29,21 +29,6 @@ CoarseDM coarse_dm;
 int frame_num;
 int save_frame_num;
 std::vector<cv::Mat> img_queue;
-// void photoCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg) {
-//   // SonarImageProc image_proc;
-//   image_proc.parseImg(msg);
-//   // cv::Mat polar = image_proc.polarImage();
-//   cv::Mat cartesian = image_proc.cartesianImage();
-//   cv::Mat float_cartesian;
-//   cartesian.convertTo(float_cartesian, CV_32FC1);
-//   float_cartesian /= 255;
-//   cv::imshow("float cartesian", float_cartesian);
-//   cv::waitKey(1);
-//   cv::Mat curCartesian;
-//   cv::copyMakeBorder(float_cartesian, curCartesian, 41, 41, 41, 41, BORDER_CONSTANT, 0.0);
-//
-// }
-
 
 void threadedOMP(std::vector<std::vector<int>> points, const cv::Mat& curCartesian, const cv::Mat& prevCartesian, cv::Mat& omp_collage) {
   for (std::vector<int>& point : points) {
@@ -55,14 +40,14 @@ void threadedOMP(std::vector<std::vector<int>> points, const cv::Mat& curCartesi
     // cout << "collage width : " << omp_collage.cols << endl;
     // cout << "collage height: " << omp_collage.rows << endl;
     Eigen::VectorXf target_gamma = coarse_dm.getGamma(curX, curY, curCartesian);
-    Eigen::Matrix<float, Dynamic, Dynamic> dict_matrix = coarse_dm.dictionaryMatrix(curX, curY, curCartesian, prevCartesian);
+    Eigen::Matrix<float, Dynamic, Dynamic> dict_matrix = coarse_dm.dictionaryMatrix(curX, curY, prevCartesian);
 
     Eigen::VectorXf error;
     Eigen::VectorXf xHat;
 
-    float omp_max = coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma, xHat, error);
+    int omp_max = coarse_dm.getTargetErrorOMP(dict_matrix, target_gamma, xHat, error);
 
-    omp_collage.at<float>(curY, curX) = omp_max;
+    omp_collage.at<int>(curY, curX) = omp_max;
   }
 }
 
@@ -72,7 +57,7 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
 
   image_proc.parseImg(msg);
   // cv::Mat polar = image_proc.polarImage();
-  cv::Mat cartesian = image_proc.cartesianImage();
+  cv::Mat cartesian = image_proc.cartesianImage(); // unsigned char
   cv::Mat float_cartesian;
   cartesian.convertTo(float_cartesian, CV_32FC1);
   float_cartesian /= 255;
@@ -105,7 +90,7 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
           std::chrono::time_point<std::chrono::system_clock> start, end;
           std::chrono::duration<double> elapsed_time;
 
-          cv::Mat omp_collage = Mat(curCartesian.rows, curCartesian.cols, CV_32FC1);
+          cv::Mat omp_collage = Mat(curCartesian.rows, curCartesian.cols, CV_32SC1);
 
           start = std::chrono::system_clock::now();
           std::vector<std::vector<int>> sample_points = coarse_dm.getSamplePoints(curCartesian);
@@ -150,13 +135,13 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
           }
 
           // BAD FIX: eliminate outlier values in omp collage
-          for (int i = 0; i < omp_collage.cols; i++) {
-            for (int j = 0; j < omp_collage.rows; j++) {
-              float val = omp_collage.at<float>(j, i);
-              if (val > 100) omp_collage.at<float>(j,i) = 0;
-              if (val < -100) omp_collage.at<float>(j,i) = 0;
-            }
-          }
+          // for (int i = 0; i < omp_collage.cols; i++) {
+          //   for (int j = 0; j < omp_collage.rows; j++) {
+          //     float val = omp_collage.at<float>(j, i);
+          //     if (val > 100) omp_collage.at<float>(j,i) = 0;
+          //     if (val < -100) omp_collage.at<float>(j,i) = 0;
+          //   }
+          // }
 
           end = std::chrono::system_clock::now();
           elapsed_time = end - start;
@@ -164,20 +149,21 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
 
           // save OMP collage image
           filename = "src/henson_sonar/output/omp" + std::to_string(save_frame_num) + ".png";
-          cv::Mat save_omp_collage;
-          omp_collage.convertTo(save_omp_collage, CV_8UC1);
-          save_omp_collage *= 255;
-          cv::imwrite(filename, save_omp_collage);
+          // cv::Mat save_omp_collage;
+          // omp_collage.convertTo(save_omp_collage, CV_8UC1);
+          // save_omp_collage *= 255;
+          // cv::imwrite(filename, save_omp_collage);
+          cv::imwrite(filename, omp_collage);
 
           // interpolate
           start = std::chrono::system_clock::now();
-          cv::Mat interpolation_img = Mat(curCartesian.rows, curCartesian.cols, CV_32FC1);
+          cv::Mat interpolation_img = Mat(curCartesian.rows, curCartesian.cols, CV_32SC1);
           for (std::vector<int>&point : sample_points) {
             int x = point[0];
             int y = point[1];
-            cout << "current point: " << x << ", " << y << endl;
-            float val = coarse_dm.interpolateOMPimage(omp_collage, interpolation_img, x, y);
-            cout << "point interpolation finished" << endl;
+            // cout << "current point: " << x << ", " << y << endl;
+            int val = coarse_dm.interpolateOMPimage(omp_collage, interpolation_img, x, y);
+            // cout << "point interpolation finished" << endl;
           }
           end = std::chrono::system_clock::now();
           elapsed_time = end - start;
@@ -187,7 +173,7 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
           filename = "src/henson_sonar/output/interp" + std::to_string(save_frame_num) + ".png";
           cv::Mat save_interpolation;
           interpolation_img.convertTo(save_interpolation, CV_8UC1);
-          save_interpolation *= 255;
+          // save_interpolation *= 255;
           cv::imwrite(filename, save_interpolation);
         }
         prevCartesian = curCartesian;
