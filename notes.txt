@@ -1,3 +1,11 @@
+2021/5/19
+- OMP image is massively messed up
+  - huge values over 100,000 randomly getting put into the image
+  - OMP is verified NOT to be outputting any erroneous values
+  - Sample points verified NOT to be located in outer border
+  - Large ranges of the entire OMP image set to garbage for no obvious reason
+
+
 2021/5/18
 - fix coarseDM stuff
   - DONE: verify that OMP is returning correct values

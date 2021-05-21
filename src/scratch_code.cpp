@@ -36,6 +36,35 @@
 //   }
 // }
 
+
+
+// cv::Range cols(x-6, x+6);
+// cv::Range rows(y-6, y+6);
+// // cv::Mat window = img(rows, cols);
+// // // double min, max;
+// // // cv::minMaxLoc(window, &min, &max);
+// // // int imgMin = (int)min;
+// // // int imgMax = (int)max;
+// // // if (imgMin < 0) imgMin = 0;
+// // // if (imgMax > 1681) imgMax = 1681;
+// replace with minMaxLoc?
+// for (int i = x-6; i <= x+6; i++) {
+//   for (int j = y-6; j <= y+6; j++) {
+//     int val = img.at<int>(j,i);
+//     if (val < imgMin) imgMin = val;
+//     if (val > imgMax) imgMax = val;
+//   }
+// }
+
+// int histSize = imgMax;
+// int binWidth = 1;
+
+// old histogram stuff (allows negative values):
+// float binWidth = (imgMax+abs(imgMin)) / histSize; // range of each bin
+// int bins_below_zero = (int) (abs(imgMin) / binWidth);
+
+
+
 // output from run:
 // min: -1.69474e+38
 // max: 1.86489e+37
