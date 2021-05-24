@@ -73,6 +73,85 @@ void threadedOMP(std::vector<std::vector<int>> points, const cv::Mat& curCartesi
   }
 }
 
+cv::Mat getCoarseDM(const cv::Mat& curCartesian, const cv::Mat& prevCartesian) {
+  // save original image
+  std::string filename = "src/henson_sonar/output/frame" + std::to_string(save_frame_num) + ".png";
+  cv::Mat save_cur_cartesian;
+  curCartesian.convertTo(save_cur_cartesian, CV_8UC1);
+  save_cur_cartesian *= 255;
+  cv::imwrite(filename, save_cur_cartesian);
+
+  // get sample points
+  std::chrono::time_point<std::chrono::system_clock> start, end;
+  std::chrono::duration<double> elapsed_time;
+
+  start = std::chrono::system_clock::now();
+  std::vector<std::vector<int>> sample_points = coarse_dm.getSamplePoints(curCartesian);
+  end = std::chrono::system_clock::now();
+  elapsed_time = end - start;
+  cout << "sample points elapsed time: " << elapsed_time.count() << "s\n";
+
+  // divvy up points for threads to work on during OMP image generation
+  start = std::chrono::system_clock::now();
+  std::vector<std::vector<std::vector<int>>> thread_jobs;
+  int thread_job_size = (int)(sample_points.size() / OMP_THREADS);
+  int last_idx;
+  for (int i = 0; i < OMP_THREADS; i++) {
+    int begin_idx = i*thread_job_size;
+    int end_idx = ((i+1)*thread_job_size)-1;
+    std::vector<std::vector<int>> points;
+    for (int j = begin_idx; j <= end_idx; j++) {
+      points.push_back(sample_points[j]);
+    }
+    thread_jobs.push_back(points);
+    last_idx = end_idx;
+  }
+  // in case OMP_THREADS doesn't divide evenly into the number of sample points,
+  // just dump the rest into the last thread (potentially bad solution)
+  for (int i = last_idx+1; i < sample_points.size(); i++) {
+    thread_jobs[thread_jobs.size()-1].push_back(sample_points[i]);
+  }
+  end = std::chrono::system_clock::now();
+  elapsed_time = end - start;
+  cout << "OMP thread jobs made in: " << elapsed_time.count() << "s\n";
+
+  // make OMP image
+  cv::Mat omp_collage = Mat(curCartesian.rows, curCartesian.cols, CV_32SC1, Scalar(0));
+  start = std::chrono::system_clock::now();
+  std::thread threads[OMP_THREADS];
+  for (int i = 0; i < OMP_THREADS; i++) {
+    std::vector<std::vector<int>> thread_points = thread_jobs[i];
+    threads[i] = std::thread(threadedOMP, thread_points, std::ref(curCartesian), std::ref(prevCartesian), std::ref(omp_collage));
+  }
+  // wait for all threads to finish
+  for (int i = 0; i < OMP_THREADS; i++) {
+    threads[i].join();
+  }
+  end = std::chrono::system_clock::now();
+  elapsed_time = end - start;
+  cout << "OMP finished in: " << elapsed_time.count() << "s\n";
+  // save OMP collage image
+  filename = "src/henson_sonar/output/omp" + std::to_string(save_frame_num) + ".png";
+  cv::imwrite(filename, omp_collage);
+
+  // interpolate OMP image
+  start = std::chrono::system_clock::now();
+  cv::Mat interpolation_img = Mat(curCartesian.rows, curCartesian.cols, CV_32SC1, Scalar(0));
+  for (std::vector<int>&point : sample_points) {
+    int x = point[0];
+    int y = point[1];
+    // cout << "current point: " << x << ", " << y << endl;
+    int val = coarse_dm.interpolateOMPimage(omp_collage, interpolation_img, x, y, sample_points);
+    // cout << "point interpolation finished" << endl;
+  }
+  end = std::chrono::system_clock::now();
+  elapsed_time = end - start;
+  cout << "interpolation finished in: " << elapsed_time.count() << "s\n";
+
+
+  return interpolation_img;
+}
+
 
 void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
 {
@@ -99,108 +178,34 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
         curCartesian = img_queue.back();
         img_queue.pop_back();
 
-        // save original image
-        std::string filename = "src/henson_sonar/output/frame" + std::to_string(save_frame_num) + ".png";
-        cv::Mat save_cur_cartesian;
-        curCartesian.convertTo(save_cur_cartesian, CV_8UC1);
-        save_cur_cartesian *= 255;
-        cv::imwrite(filename, save_cur_cartesian);
-
         if (first) {
           prevCartesian = curCartesian;
           first = false;
         } else {
+          // get forward and backward DM
+          cv::Mat fwdDM = getCoarseDM(curCartesian, prevCartesian);
+          // save interpolated image
+          std::string filename = "src/henson_sonar/output/fwd_interp" + std::to_string(save_frame_num) + ".png";
+          cv::imwrite(filename, fwdDM);
+
+          cv::Mat bwdDM = getCoarseDM(prevCartesian, curCartesian);
+          // save interpolated image
+          filename = "src/henson_sonar/output/bwd_interp" + std::to_string(save_frame_num) + ".png";
+          cv::imwrite(filename, bwdDM);
 
           std::chrono::time_point<std::chrono::system_clock> start, end;
           std::chrono::duration<double> elapsed_time;
-
-          cv::Mat omp_collage = Mat(curCartesian.rows, curCartesian.cols, CV_32SC1, Scalar(0));
-
           start = std::chrono::system_clock::now();
-          std::vector<std::vector<int>> sample_points = coarse_dm.getSamplePoints(curCartesian);
+          // compare to eliminate bad estimaes
+          coarse_dm.compareDM(fwdDM, bwdDM);
           end = std::chrono::system_clock::now();
           elapsed_time = end - start;
-          cout << "sample points elapsed time: " << elapsed_time.count() << "s\n";
+          cout << "coarse DM comparison complete in: " << elapsed_time.count() << "s\n";
 
-          // divvy up points for each OMP thread to work on
-          start = std::chrono::system_clock::now();
-          std::vector<std::vector<std::vector<int>>> thread_jobs;
-          int thread_job_size = (int)(sample_points.size() / OMP_THREADS);
-          int last_idx;
-          for (int i = 0; i < OMP_THREADS; i++) {
-            int begin_idx = i*thread_job_size;
-            int end_idx = ((i+1)*thread_job_size)-1;
-            std::vector<std::vector<int>> points;
-            for (int j = begin_idx; j <= end_idx; j++) {
-              points.push_back(sample_points[j]);
-            }
-            thread_jobs.push_back(points);
-            last_idx = end_idx;
-          }
-          // in case OMP_THREADS doesn't divide evenly into the number of sample points,
-          // just dump the rest into the last thread (potentially bad solution)
-          for (int i = last_idx+1; i < sample_points.size(); i++) {
-            thread_jobs[thread_jobs.size()-1].push_back(sample_points[i]);
-          }
-          end = std::chrono::system_clock::now();
-          elapsed_time = end - start;
-          cout << "OMP thread jobs made in: " << elapsed_time.count() << "s\n";
+          // save result
+          filename = "src/henson_sonar/output/final_coarseDM" + std::to_string(save_frame_num) + ".png";
+          cv::imwrite(filename, fwdDM);
 
-          // make a bunch of threads, each one working on it's own set of sample points
-          start = std::chrono::system_clock::now();
-
-          std::thread threads[OMP_THREADS];
-          for (int i = 0; i < OMP_THREADS; i++) {
-            std::vector<std::vector<int>> thread_points = thread_jobs[i];
-            threads[i] = std::thread(threadedOMP, thread_points, std::ref(curCartesian), std::ref(prevCartesian), std::ref(omp_collage));
-          }
-          // wait for all threads to finish
-          for (int i = 0; i < OMP_THREADS; i++) {
-            threads[i].join();
-          }
-
-          // // BAD FIX: eliminate outlier values in omp collage
-          // for (int i = 0; i < omp_collage.cols; i++) {
-          //   for (int j = 0; j < omp_collage.rows; j++) {
-          //     int val = omp_collage.at<int>(j, i);
-          //     if (val > 2000) omp_collage.at<int>(j,i) = 0;
-          //     if (val < -2000) omp_collage.at<int>(j,i) = 0;
-          //   }
-          // }
-
-          end = std::chrono::system_clock::now();
-          elapsed_time = end - start;
-          cout << "OMP finished in: " << elapsed_time.count() << "s\n";
-
-
-          // save OMP collage image
-          filename = "src/henson_sonar/output/omp" + std::to_string(save_frame_num) + ".png";
-          // cv::Mat save_omp_collage;
-          // omp_collage.convertTo(save_omp_collage, CV_8UC1);
-          // save_omp_collage *= 255;
-          // cv::imwrite(filename, save_omp_collage);
-          cv::imwrite(filename, omp_collage);
-
-          // interpolate
-          start = std::chrono::system_clock::now();
-          cv::Mat interpolation_img = Mat(curCartesian.rows, curCartesian.cols, CV_32SC1, Scalar(0));
-          for (std::vector<int>&point : sample_points) {
-            int x = point[0];
-            int y = point[1];
-            // cout << "current point: " << x << ", " << y << endl;
-            int val = coarse_dm.interpolateOMPimage(omp_collage, interpolation_img, x, y, sample_points);
-            // cout << "point interpolation finished" << endl;
-          }
-          end = std::chrono::system_clock::now();
-          elapsed_time = end - start;
-          cout << "interpolation finished in: " << elapsed_time.count() << "s\n";
-
-          // save interpolation image
-          filename = "src/henson_sonar/output/interp" + std::to_string(save_frame_num) + ".png";
-          cv::Mat save_interpolation;
-          interpolation_img.convertTo(save_interpolation, CV_8UC1);
-          // save_interpolation *= 255;
-          cv::imwrite(filename, save_interpolation);
         }
         prevCartesian = curCartesian;
         save_frame_num++;

@@ -19,8 +19,8 @@ public:
   Eigen::Matrix<float, Dynamic, Dynamic> dictionaryMatrix(int pixelX, int pixelY, const cv::Mat& imgRef);
   int getTargetErrorOMP(const Matrix<float, Dynamic, Dynamic>& dictA, const VectorXf& targetY, VectorXf& xHatOut, VectorXf& errorOut);
   std::vector<std::vector<int>> getSamplePoints(const cv::Mat& img);
-  // void interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int y);
   int interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int y, std::vector<std::vector<int>> sample_points);
+  void compareDM(cv::Mat& forwardDM, const cv::Mat& backwardDM);
 private:
   int rangeMap(int val, int in_start, int in_end, int out_start, int out_end);
   int flipRange(int in, int min, int max);

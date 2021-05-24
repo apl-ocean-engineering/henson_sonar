@@ -1,3 +1,22 @@
+2021/5/21
+- DONE: get coarseDM comparison going
+  - write comparison function
+    - inefficient method of filling in invalid measurements. could be improved
+  - encapsulate coarseDM generation into a function
+- still have issue of interpolation being slow due to using vectors of points
+
+
+2021/5/21
+- OMP and interpolation finally working :)
+- fixed interpolation to only operate on other sample points
+  - issue: for every point in sample_points, im making a list of all the
+    other sample points near it.
+    This ends up taking a really long time: was taking 180 seconds to do all interpolation
+    since I was searching through a vector of vectors of ints for sample points.
+    Now I have the sample_points being saved into a set of sample points for faster lookup,
+    which has reduced the time by a factor of 2
+
+
 2021/5/19
 - OMP image is massively messed up
   - huge values over 100,000 randomly getting put into the image
@@ -13,7 +32,6 @@
     - 2 channel images in opencv?
     - ISSUE: OMP output has range of 0-1680
       - have been using 8UC1 images -> 8bit unsigned int has max of 255
-        - TODO:
 
 
 2021/5/10

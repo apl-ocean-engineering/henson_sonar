@@ -63,6 +63,15 @@
 // float binWidth = (imgMax+abs(imgMin)) / histSize; // range of each bin
 // int bins_below_zero = (int) (abs(imgMin) / binWidth);
 
+// // BAD FIX: eliminate outlier values in omp collage
+// for (int i = 0; i < omp_collage.cols; i++) {
+//   for (int j = 0; j < omp_collage.rows; j++) {
+//     int val = omp_collage.at<int>(j, i);
+//     if (val > 2000) omp_collage.at<int>(j,i) = 0;
+//     if (val < -2000) omp_collage.at<int>(j,i) = 0;
+//   }
+// }
+
 
 
 // output from run:

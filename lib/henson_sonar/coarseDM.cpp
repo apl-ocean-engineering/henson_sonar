@@ -307,6 +307,17 @@ std::vector<std::vector<int>> CoarseDM::getSamplePoints(const cv::Mat &img) {
   return result;
 }
 
+struct VectorHash {
+    size_t operator()(const std::vector<int>& v) const {
+        std::hash<int> hasher;
+        size_t seed = 0;
+        for (int i : v) {
+            seed ^= hasher(i) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+        }
+        return seed;
+    }
+};
+
 // void CoarseDM::interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int y) {
 // input:
 //  img   reference OMP image (32SC1)
@@ -315,14 +326,15 @@ std::vector<std::vector<int>> CoarseDM::getSamplePoints(const cv::Mat &img) {
 //  y     y coordinate of point of interest
 int CoarseDM::interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int y, std::vector<std::vector<int>> sample_points) {
   // make histogram of sample points within 13 x 13 area around point
-
+  std::unordered_set<std::vector<int>, VectorHash> sample_points_set;
+  std::copy(sample_points.begin(), sample_points.end(), std::inserter(sample_points_set, sample_points_set.end()));
   // get list of all sample points in 13 x 13 area around point
   std::vector<std::vector<int>> window_points;
-  for (int i = x-6; i <= x+6; i++) {
-    for (int j = y-6; j <= y+6; j++) {
+  for (int j = y-6; j <= y+6; j++) {
+    for (int i = x-6; i <= x+6; i++) {
       std::vector<int> cur_point = {i, j};
       bool valid = false;
-      if (std::find(sample_points.begin(), sample_points.end(), cur_point) != sample_points.end()) valid = true;
+      if (sample_points_set.find(cur_point) != sample_points_set.end()) valid = true;
       if (valid) window_points.push_back(cur_point);
     }
   }
@@ -380,8 +392,8 @@ int CoarseDM::interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int y
   // cout << "max bin sum = " << binSum << endl;
   int avg = (int)(binSum/hist[max_bin_index].size());
 
-  for (int i = x-6; i <= x+6; i++) {
-    for (int j = y-6; j <= y+6; j++) {
+  for (int j = y-6; j <= y+6; j++) {
+    for (int i = x-6; i <= x+6; i++) {
       // cout << "set point " << i << ", " << j << " to " << avg << endl;
       out.at<int>(j,i) = avg;
     }
@@ -413,4 +425,64 @@ int CoarseDM::rangeMap(int in, int in_start, int in_end, int out_start, int out_
 int CoarseDM::flipRange(int in, int min, int max) {
   return (max + min) - in;
 }
-// void CoarseDM::compareDM(const cv::Mat& forwardDM, const cv::Mat& backwardDM, cv::Mat& out)
+
+// compares two coarse depth map images (post interpolation)
+// input:
+//  forwardDM   forward depth map image (32SC1)
+//  backDM      backward depth map image (32SC1)
+// output:
+//  forwardDM   forward DM is corrected and modified
+void CoarseDM::compareDM(cv::Mat& forwardDM, const cv::Mat& backwardDM) {
+  // comparison for every pixel position ξ ∈ X (every pixel in image? or sample points?)
+  // doing all pixels for now
+
+  cv::Mat valid_estimates = Mat(forwardDM.rows, forwardDM.cols, CV_8UC1, Scalar(0));
+  vector<Point> valid_points;
+  vector<Point> invalid_points;
+
+  for (int i = 0; i < forwardDM.cols; i++) {
+    for (int j = 0; j < forwardDM.rows; j++) {
+
+      int fwd_val = forwardDM.at<int>(j, i);
+      int fwd_x_shift = (fwd_val % 41) - 20;
+      int fwd_y_shift = 20 - ((int) fwd_val / 41);
+
+      int bwd_val = backwardDM.at<int>(j-fwd_y_shift, i-fwd_x_shift);
+      int bwd_x_shift = (bwd_val % 41) - 20;
+      int bwd_y_shift = 20 - ((int) bwd_val / 41);
+
+      bool valid = ((abs(bwd_x_shift + fwd_x_shift) + abs(bwd_y_shift + fwd_y_shift)) > 2);
+      if (valid) valid_points.push_back({i, j});
+      else invalid_points.push_back({i, j});
+      valid_estimates.at<uchar>(j, i) = (int) valid;
+
+      // if not valid, find nearest accepted measurement
+      // idea:
+      //  make binary image same size as depth map, init to all zeros
+      //  fill in this image with 1's anywhere there is an accepted measurement
+      //  use opencv's findNonZero function to get all accepted points
+      //  for each point that isn't aceepted (= 0), find nearest accepted point
+      //    (just use pythagorean theorem for this)
+
+    }
+  }
+
+  for (Point& p : invalid_points) {
+    // find nearest valid point
+    // NOTE: extremely inefficient. need to implement spiral search or something better
+    int dist, min_idx;
+    dist = pow(valid_points[0].x - p.x, 2) + pow(valid_points[0].y - p.y, 2);
+    min_idx = 0;
+    for (int i = 1; i < valid_points.size(); i++) {
+      int cur = pow(valid_points[i].x - p.x, 2) + pow(valid_points[i].y - p.y, 2);
+      if (cur < dist) {
+        cur = dist;
+        min_idx = i;
+      }
+    }
+
+    forwardDM.at<int>(p.y, p.x) = forwardDM.at<int>(valid_points[min_idx]);
+
+  }
+
+}
