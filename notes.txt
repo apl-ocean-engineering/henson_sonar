@@ -4,6 +4,10 @@
     - inefficient method of filling in invalid measurements. could be improved
   - encapsulate coarseDM generation into a function
 - still have issue of interpolation being slow due to using vectors of points
+- HFSC for fine depth map
+  - paper just divides the image into square sub-images,
+    then connects the curve for each one -> span the entire image
+  - NOTE: existing algorithm (in python, previous version of repo) DOESNT work
 
 
 2021/5/21

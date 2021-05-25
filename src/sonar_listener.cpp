@@ -75,7 +75,7 @@ void threadedOMP(std::vector<std::vector<int>> points, const cv::Mat& curCartesi
 
 cv::Mat getCoarseDM(const cv::Mat& curCartesian, const cv::Mat& prevCartesian) {
   // save original image
-  std::string filename = "src/henson_sonar/output/frame" + std::to_string(save_frame_num) + ".png";
+  std::string filename = "/home/tanner/catkin_ws/src/henson_sonar/output/frame" + std::to_string(save_frame_num) + ".png";
   cv::Mat save_cur_cartesian;
   curCartesian.convertTo(save_cur_cartesian, CV_8UC1);
   save_cur_cartesian *= 255;
@@ -131,7 +131,7 @@ cv::Mat getCoarseDM(const cv::Mat& curCartesian, const cv::Mat& prevCartesian) {
   elapsed_time = end - start;
   cout << "OMP finished in: " << elapsed_time.count() << "s\n";
   // save OMP collage image
-  filename = "src/henson_sonar/output/omp" + std::to_string(save_frame_num) + ".png";
+  filename = "/home/tanner/catkin_ws/src/henson_sonar/output/omp" + std::to_string(save_frame_num) + ".png";
   cv::imwrite(filename, omp_collage);
 
   // interpolate OMP image
@@ -184,14 +184,8 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
         } else {
           // get forward and backward DM
           cv::Mat fwdDM = getCoarseDM(curCartesian, prevCartesian);
-          // save interpolated image
-          std::string filename = "src/henson_sonar/output/fwd_interp" + std::to_string(save_frame_num) + ".png";
-          cv::imwrite(filename, fwdDM);
 
           cv::Mat bwdDM = getCoarseDM(prevCartesian, curCartesian);
-          // save interpolated image
-          filename = "src/henson_sonar/output/bwd_interp" + std::to_string(save_frame_num) + ".png";
-          cv::imwrite(filename, bwdDM);
 
           std::chrono::time_point<std::chrono::system_clock> start, end;
           std::chrono::duration<double> elapsed_time;
@@ -202,8 +196,16 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
           elapsed_time = end - start;
           cout << "coarse DM comparison complete in: " << elapsed_time.count() << "s\n";
 
+          // save interpolated image
+          std::string filename = "/home/tanner/catkin_ws/src/henson_sonar/output/fwd_interp" + std::to_string(save_frame_num) + ".png";
+          cv::imwrite(filename, fwdDM);
+
+          // save interpolated image
+          filename = "/home/tanner/catkin_ws/src/henson_sonar/output/bwd_interp" + std::to_string(save_frame_num) + ".png";
+          cv::imwrite(filename, bwdDM);
+
           // save result
-          filename = "src/henson_sonar/output/final_coarseDM" + std::to_string(save_frame_num) + ".png";
+          filename = "/home/tanner/catkin_ws/src/henson_sonar/output/final_coarseDM" + std::to_string(save_frame_num) + ".png";
           cv::imwrite(filename, fwdDM);
 
         }
