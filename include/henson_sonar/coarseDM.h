@@ -21,6 +21,7 @@ public:
   std::vector<std::vector<int>> getSamplePoints(const cv::Mat& img);
   int interpolateOMPimage(const cv::Mat& img, cv::Mat& out, int x, int y, std::vector<std::vector<int>> sample_points);
   void compareDM(cv::Mat& forwardDM, const cv::Mat& backwardDM);
+  cv::Mat scaleImg(cv::Mat& img);
 private:
   int rangeMap(int val, int in_start, int in_end, int out_start, int out_end);
   int flipRange(int in, int min, int max);

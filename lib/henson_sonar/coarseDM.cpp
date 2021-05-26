@@ -482,7 +482,24 @@ void CoarseDM::compareDM(cv::Mat& forwardDM, const cv::Mat& backwardDM) {
     }
 
     forwardDM.at<int>(p.y, p.x) = forwardDM.at<int>(valid_points[min_idx]);
-
   }
+}
 
+// (scale as in intensity, not size)
+cv::Mat CoarseDM::scaleImg(cv::Mat& img) {
+  double min, max;
+  cv::minMaxLoc(img, &min, &max);
+  int imgMin = (int)min;
+  int imgMax = (int)max;
+  cv::Mat scale;
+  img.convertTo(scale, CV_32FC1);
+  scale /= imgMax;
+  cv::Mat ret;
+  scale.convertTo(ret, CV_8UC1);
+  ret *= 255;
+  cout << "max: " << imgMax << endl;
+  // cv::Mat ret;
+  // img.convertTo(ret, CV_8UC1);
+  // ret = (int)(((float)ret / imgMax) * 255);
+  return ret;
 }

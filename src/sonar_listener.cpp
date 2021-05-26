@@ -130,9 +130,12 @@ cv::Mat getCoarseDM(const cv::Mat& curCartesian, const cv::Mat& prevCartesian) {
   end = std::chrono::system_clock::now();
   elapsed_time = end - start;
   cout << "OMP finished in: " << elapsed_time.count() << "s\n";
+
   // save OMP collage image
   filename = "/home/tanner/catkin_ws/src/henson_sonar/output/omp" + std::to_string(save_frame_num) + ".png";
-  cv::imwrite(filename, omp_collage);
+  cv::Mat save = coarse_dm.scaleImg(omp_collage);
+  cv::imwrite(filename, save);
+  // cv::imwrite(filename, omp_collage);
 
   // interpolate OMP image
   start = std::chrono::system_clock::now();
@@ -147,7 +150,6 @@ cv::Mat getCoarseDM(const cv::Mat& curCartesian, const cv::Mat& prevCartesian) {
   end = std::chrono::system_clock::now();
   elapsed_time = end - start;
   cout << "interpolation finished in: " << elapsed_time.count() << "s\n";
-
 
   return interpolation_img;
 }
@@ -187,6 +189,17 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
 
           cv::Mat bwdDM = getCoarseDM(prevCartesian, curCartesian);
 
+          // save initial forward coarse DM
+          cv::Mat save;
+          std::string filename = "/home/tanner/catkin_ws/src/henson_sonar/output/fwd_interp" + std::to_string(save_frame_num) + ".png";
+          save = coarse_dm.scaleImg(fwdDM);
+          cv::imwrite(filename, save);
+
+          // save initial backward coarse DM
+          filename = "/home/tanner/catkin_ws/src/henson_sonar/output/bwd_interp" + std::to_string(save_frame_num) + ".png";
+          save = coarse_dm.scaleImg(bwdDM);
+          cv::imwrite(filename, save);
+
           std::chrono::time_point<std::chrono::system_clock> start, end;
           std::chrono::duration<double> elapsed_time;
           start = std::chrono::system_clock::now();
@@ -196,17 +209,10 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
           elapsed_time = end - start;
           cout << "coarse DM comparison complete in: " << elapsed_time.count() << "s\n";
 
-          // save interpolated image
-          std::string filename = "/home/tanner/catkin_ws/src/henson_sonar/output/fwd_interp" + std::to_string(save_frame_num) + ".png";
-          cv::imwrite(filename, fwdDM);
-
-          // save interpolated image
-          filename = "/home/tanner/catkin_ws/src/henson_sonar/output/bwd_interp" + std::to_string(save_frame_num) + ".png";
-          cv::imwrite(filename, bwdDM);
-
-          // save result
+          // save final forward coarse DM
           filename = "/home/tanner/catkin_ws/src/henson_sonar/output/final_coarseDM" + std::to_string(save_frame_num) + ".png";
-          cv::imwrite(filename, fwdDM);
+          save = coarse_dm.scaleImg(fwdDM);
+          cv::imwrite(filename, save);
 
         }
         prevCartesian = curCartesian;
