@@ -144,6 +144,7 @@ Qs:
     img width : 784 with 41 px border -> actually 702
   - y: [41,297]
   - x: [41,743]
+  	- actual dimensions, size of picture
 - TODO: bad image encoding is definitely messing up interpolation
   - compare frame12 and interp12 in queue/save_error: shifted "duplicate" put on to frame12
     is reflected in interpolation output

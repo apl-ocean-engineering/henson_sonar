@@ -154,9 +154,21 @@ cv::Mat getCoarseDM(const cv::Mat& curCartesian, const cv::Mat& prevCartesian) {
   return interpolation_img;
 }
 
+bool once;
 
 void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
 {
+
+  if (once) {
+    once = false;
+    int n = 8;
+    // Point[] square1_hfsc
+    for (int i = 0; i < n*n; i++) {
+      Point cur = coarse_dm.hsfc_indexToXY(i, n);
+      cout << "x: " << cur.x << " y: " << cur.y << endl;
+    }
+  }
+
 
   image_proc.parseImg(msg);
   // cv::Mat polar = image_proc.polarImage();
@@ -228,6 +240,7 @@ void sonarCallback(const imaging_sonar_msgs::SonarImage::ConstPtr& msg)
 int main(int argc, char **argv)
 {
 
+  once = true;
   first = true;
 
   frame_num = 0;

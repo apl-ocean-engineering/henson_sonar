@@ -487,19 +487,58 @@ void CoarseDM::compareDM(cv::Mat& forwardDM, const cv::Mat& backwardDM) {
 
 // (scale as in intensity, not size)
 cv::Mat CoarseDM::scaleImg(cv::Mat& img) {
-  double min, max;
-  cv::minMaxLoc(img, &min, &max);
-  int imgMin = (int)min;
-  int imgMax = (int)max;
-  cv::Mat scale;
-  img.convertTo(scale, CV_32FC1);
-  scale /= imgMax;
-  cv::Mat ret;
-  scale.convertTo(ret, CV_8UC1);
-  ret *= 255;
-  cout << "max: " << imgMax << endl;
+  // double min, max;
+  // cv::minMaxLoc(img, &min, &max);
+  // int imgMin = (int)min;
+  // int imgMax = (int)max;
+  // cv::Mat scale;
+  // img.convertTo(scale, CV_32FC1);
+  // scale /= imgMax;
   // cv::Mat ret;
-  // img.convertTo(ret, CV_8UC1);
-  // ret = (int)(((float)ret / imgMax) * 255);
+  // scale.convertTo(ret, CV_8UC1);
+  // ret *= 255;
+  // cout << "max: " << imgMax << endl;
+  // // cv::Mat ret;
+  // // img.convertTo(ret, CV_8UC1);
+  // // ret = (int)(((float)ret / imgMax) * 255);
+  cv::Mat ret;
+  cv::normalize(img, ret, 0, 255, NORM_MINMAX, CV_8UC1);
   return ret;
+}
+
+int CoarseDM::hsfc_last2bits(int x) { return x&3; }
+
+Point CoarseDM::hsfc_indexToXY(int hindex, int N) {
+  Point positions[4] = {{0,0}, {0,1}, {1,1}, {1,0}};
+  Point tmp = positions[hsfc_last2bits(hindex)];
+  hindex = (hindex >> 2);
+  int x = tmp.x;
+  int y = tmp.y;
+  for (int n = 4; n <= N; n*= 2) {
+    int n2 = n/2;
+    switch (hsfc_last2bits(hindex)) {
+      int swap;
+      case 0:
+        swap = x;
+        x = y;
+        y = swap;
+        break;
+      case 1:
+        x = x;
+        y = y + n2;
+        break;
+      case 2:
+        x = x + n2;
+        y = y + n2;
+        break;
+      case 3:
+        swap = y;
+        y = (n2-1) - x;
+        x = (n2-1) - swap;
+        x = x+n2;
+        break;
+    }
+    hindex = (hindex >> 2);
+  }
+  return {x,y};
 }
